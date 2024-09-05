@@ -1,0 +1,51 @@
+################################################################################
+# Automatically-generated file. Do not edit!
+################################################################################
+
+# Add inputs and outputs from these tool invocations to the build variables 
+C_SRCS += \
+../utilities/fsl_assert.c \
+../utilities/fsl_debug_console.c \
+../utilities/fsl_str.c \
+../utilities/semihost_hardfault.c 
+
+S_UPPER_SRCS += \
+../utilities/fsl_memcpy.S 
+
+C_DEPS += \
+./utilities/fsl_assert.d \
+./utilities/fsl_debug_console.d \
+./utilities/fsl_str.d \
+./utilities/semihost_hardfault.d 
+
+OBJS += \
+./utilities/fsl_assert.o \
+./utilities/fsl_debug_console.o \
+./utilities/fsl_memcpy.o \
+./utilities/fsl_str.o \
+./utilities/semihost_hardfault.o 
+
+
+# Each subdirectory must supply rules for building sources it contributes
+utilities/%.o: ../utilities/%.c utilities/subdir.mk
+	@echo 'Building file: $<'
+	@echo 'Invoking: MCU C Compiler'
+	arm-none-eabi-gcc -std=gnu99 -DCPU_LPC55S06JBD64 -DCPU_LPC55S06JBD64_cm33 -DMCUXPRESSO_SDK -DCR_INTEGER_PRINTF -DPRINTF_FLOAT_ENABLE=0 -D__MCUXPRESSO -D__USE_CMSIS -DNDEBUG -D__REDLIB__ -DSDK_DEBUGCONSOLE=0 -DTIMER_PORT_TYPE_CTIMER=1 -DSDK_OS_BAREMETAL -I"/home/asolari/FSAE/code/FSAE_ECU/ECU_fsl/utilities" -I"/home/asolari/FSAE/code/FSAE_ECU/ECU_fsl/drivers" -I"/home/asolari/FSAE/code/FSAE_ECU/ECU_fsl/device" -I"/home/asolari/FSAE/code/FSAE_ECU/ECU_fsl/component/uart" -I"/home/asolari/FSAE/code/FSAE_ECU/ECU_fsl/component/lists" -I"/home/asolari/FSAE/code/FSAE_ECU/ECU_fsl/CMSIS" -I"/home/asolari/FSAE/code/FSAE_ECU/ECU_fsl/component/timer" -I"/home/asolari/FSAE/code/FSAE_ECU/ECU_fsl/component/timer_manager" -I"/home/asolari/FSAE/code/FSAE_ECU/ECU_fsl/source" -I"/home/asolari/FSAE/code/FSAE_ECU/ECU_fsl/board" -Os -fno-common -g -gdwarf-4 -mcpu=cortex-m33 -c -ffunction-sections -fdata-sections -ffreestanding -fno-builtin -fmacro-prefix-map="$(<D)/"= -mcpu=cortex-m33 -mfpu=fpv5-sp-d16 -mfloat-abi=hard -mthumb -D__REDLIB__ -fstack-usage -specs=redlib.specs -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.o)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
+	@echo 'Finished building: $<'
+	@echo ' '
+
+utilities/%.o: ../utilities/%.S utilities/subdir.mk
+	@echo 'Building file: $<'
+	@echo 'Invoking: MCU Assembler'
+	arm-none-eabi-gcc -c -x assembler-with-cpp -D__REDLIB__ -I"/home/asolari/FSAE/code/FSAE_ECU/ECU_fsl/source" -mcpu=cortex-m33 -mfpu=fpv5-sp-d16 -mfloat-abi=hard -mthumb -D__REDLIB__ -specs=redlib.specs -o "$@" "$<"
+	@echo 'Finished building: $<'
+	@echo ' '
+
+
+clean: clean-utilities
+
+clean-utilities:
+	-$(RM) ./utilities/fsl_assert.d ./utilities/fsl_assert.o ./utilities/fsl_debug_console.d ./utilities/fsl_debug_console.o ./utilities/fsl_memcpy.o ./utilities/fsl_str.d ./utilities/fsl_str.o ./utilities/semihost_hardfault.d ./utilities/semihost_hardfault.o
+
+.PHONY: clean-utilities
+
