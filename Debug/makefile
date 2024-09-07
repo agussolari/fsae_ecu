@@ -30,7 +30,7 @@ $(wildcard ../makefile.init) \
 $(wildcard ../makefile.targets) \
 
 
-BUILD_ARTIFACT_NAME := ECU_FSAE
+BUILD_ARTIFACT_NAME := fsae_ecu
 BUILD_ARTIFACT_EXTENSION := axf
 BUILD_ARTIFACT_PREFIX :=
 BUILD_ARTIFACT := $(BUILD_ARTIFACT_PREFIX)$(BUILD_ARTIFACT_NAME)$(if $(BUILD_ARTIFACT_EXTENSION),.$(BUILD_ARTIFACT_EXTENSION),)
@@ -42,24 +42,24 @@ all:
 	+@$(MAKE) --no-print-directory main-build && $(MAKE) --no-print-directory post-build
 
 # Main-build Target
-main-build: ECU_FSAE.axf
+main-build: fsae_ecu.axf
 
 # Tool invocations
-ECU_FSAE.axf: $(OBJS) $(USER_OBJS) makefile $(OPTIONAL_TOOL_DEPS)
+fsae_ecu.axf: $(OBJS) $(USER_OBJS) makefile $(OPTIONAL_TOOL_DEPS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: MCU Linker'
-	arm-none-eabi-gcc -nostdlib -Xlinker -Map="ECU_FSAE.map" -Xlinker --gc-sections -Xlinker -print-memory-usage -Xlinker --sort-section=alignment -Xlinker --cref -mcpu=cortex-m33 -mfpu=fpv5-sp-d16 -mfloat-abi=hard -mthumb -T ECU_throttle_Debug.ld -o "ECU_FSAE.axf" $(OBJS) $(USER_OBJS) $(LIBS)
+	arm-none-eabi-gcc -nostdlib -Xlinker -Map="fsae_ecu.map" -Xlinker --gc-sections -Xlinker -print-memory-usage -Xlinker --sort-section=alignment -Xlinker --cref -mcpu=cortex-m33 -mfpu=fpv5-sp-d16 -mfloat-abi=hard -mthumb -T "fsae_ecu_Debug.ld" -o "fsae_ecu.axf" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) ECU_FSAE.axf
+	-$(RM) fsae_ecu.axf
 	-@echo ' '
 
 post-build:
 	-@echo 'Performing post-build steps'
-	-arm-none-eabi-size "ECU_FSAE.axf"; # arm-none-eabi-objcopy -v -O binary "ECU_FSAE.axf" "ECU_FSAE.bin" ; # checksum -p LPC55S06 -d "ECU_FSAE.bin";
+	-arm-none-eabi-size "fsae_ecu.axf"; # arm-none-eabi-objcopy -v -O binary "fsae_ecu.axf" "fsae_ecu.bin" ; # checksum -p LPC55S06 -d "fsae_ecu.bin";
 	-@echo ' '
 
 .PHONY: all clean dependents main-build post-build
