@@ -16,8 +16,6 @@ OBJS :=
 SUBDIRS := \
 board \
 component/lists \
-component/timer \
-component/timer_manager \
 component/uart \
 device \
 drivers \

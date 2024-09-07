@@ -14,8 +14,6 @@ RM := rm -rf
 -include drivers/subdir.mk
 -include device/subdir.mk
 -include component/uart/subdir.mk
--include component/timer_manager/subdir.mk
--include component/timer/subdir.mk
 -include component/lists/subdir.mk
 -include board/subdir.mk
 ifneq ($(MAKECMDGOALS),clean)
@@ -32,7 +30,7 @@ $(wildcard ../makefile.init) \
 $(wildcard ../makefile.targets) \
 
 
-BUILD_ARTIFACT_NAME := ECU_fsl
+BUILD_ARTIFACT_NAME := ECU_FSAE
 BUILD_ARTIFACT_EXTENSION := axf
 BUILD_ARTIFACT_PREFIX :=
 BUILD_ARTIFACT := $(BUILD_ARTIFACT_PREFIX)$(BUILD_ARTIFACT_NAME)$(if $(BUILD_ARTIFACT_EXTENSION),.$(BUILD_ARTIFACT_EXTENSION),)
@@ -44,24 +42,24 @@ all:
 	+@$(MAKE) --no-print-directory main-build && $(MAKE) --no-print-directory post-build
 
 # Main-build Target
-main-build: ECU_fsl.axf
+main-build: ECU_FSAE.axf
 
 # Tool invocations
-ECU_fsl.axf: $(OBJS) $(USER_OBJS) makefile $(OPTIONAL_TOOL_DEPS)
+ECU_FSAE.axf: $(OBJS) $(USER_OBJS) makefile $(OPTIONAL_TOOL_DEPS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: MCU Linker'
-	arm-none-eabi-gcc -nostdlib -Xlinker -Map="ECU_fsl.map" -Xlinker --gc-sections -Xlinker -print-memory-usage -Xlinker --sort-section=alignment -Xlinker --cref -mcpu=cortex-m33 -mfpu=fpv5-sp-d16 -mfloat-abi=hard -mthumb -T ECU_fsl_Debug.ld -o "ECU_fsl.axf" $(OBJS) $(USER_OBJS) $(LIBS)
+	arm-none-eabi-gcc -nostdlib -Xlinker -Map="ECU_FSAE.map" -Xlinker --gc-sections -Xlinker -print-memory-usage -Xlinker --sort-section=alignment -Xlinker --cref -mcpu=cortex-m33 -mfpu=fpv5-sp-d16 -mfloat-abi=hard -mthumb -T ECU_throttle_Debug.ld -o "ECU_FSAE.axf" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) ECU_fsl.axf
+	-$(RM) ECU_FSAE.axf
 	-@echo ' '
 
 post-build:
 	-@echo 'Performing post-build steps'
-	-arm-none-eabi-size "ECU_fsl.axf"; # arm-none-eabi-objcopy -v -O binary "ECU_fsl.axf" "ECU_fsl.bin" ; # checksum -p LPC55S06 -d "ECU_fsl.bin";
+	-arm-none-eabi-size "ECU_FSAE.axf"; # arm-none-eabi-objcopy -v -O binary "ECU_FSAE.axf" "ECU_FSAE.bin" ; # checksum -p LPC55S06 -d "ECU_FSAE.bin";
 	-@echo ' '
 
 .PHONY: all clean dependents main-build post-build

@@ -68,13 +68,39 @@ void run_motors (void)
     //PDO1: control word[2 bytes], target velocity[4 bytes], max torque[2 bytes]
     //PDO2: targuet position [4 bytes], other reserved[4 bytes]
 
-    uint8_t rpdo1Data[8] = { 0x0F, 0x00, 0x00, 0x00, (sensor_values.throttle) & 0xFF, (sensor_values.throttle >> 8) & 0xFF, sensor_values.torque & 0xFF, (sensor_values.torque >> 8) & 0xFF };
+//    uint8_t rpdo1Data[8] = { 0x0F, 0x00, 0x00, 0x00, (sensor_values.throttle) & 0xFF, (sensor_values.throttle >> 8) & 0xFF, sensor_values.torque & 0xFF, (sensor_values.torque >> 8) & 0xFF };
 //    uint8_t rpdo1Data[8] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, sensor_values.torque & 0xFF, (sensor_values.torque >> 8) & 0xFF };
+//    uint8_t rpdo1Data[8] = { 0x0F, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0, 0 };
 
-    uint8_t rpdo2Data[8] = {0x0F, 0x00, 0x00, 0x00};
+//    uint8_t rpdo2Data[8] = {0x0F, 0x00, 0x00, 0x00};
 
-    send_can_message(RPDO1_ID, rpdo1Data, 8);
-    send_can_message(RPDO2_ID, rpdo2Data, 0);
+//    send_can_message(RPDO1_ID, rpdo1Data, 8);
+//    send_can_message(RPDO2_ID, rpdo2Data, 4);
+
+    can_msg_t sdo_msg;
+    sdo_msg.id = 0x581 + NODE_ID; // COB-ID del SDO Write
+    sdo_msg.len = 8;
+    sdo_msg.data[0] = 0x43;        // Comando SDO Write (4 bytes)
+    sdo_msg.data[1] = 0xFF;        // Índice (byte bajo de 0x60FF)
+    sdo_msg.data[2] = 0x60;        // Índice (byte alto de 0x60FF)
+    sdo_msg.data[3] = 0x00;        // Subíndice (0x00)
+    sdo_msg.data[4] = (sensor_values.throttle & 0xFF);       // Byte 0 del valor
+    sdo_msg.data[5] = (sensor_values.throttle >> 8) & 0xFF;  // Byte 1 del valor
+    sdo_msg.data[6] = (sensor_values.throttle >> 16) & 0xFF; // Byte 2 del valor
+    sdo_msg.data[7] = (sensor_values.throttle >> 24) & 0xFF; // Byte 3 del valor
+
+    can_sendTxMsg(&sdo_msg);
+
+    can_msg_t sdo_response;
+    if (can_isNewRxMsg()) {
+        if (can_readRxMsg(&sdo_response) && sdo_response.id == (0x580 + NODE_ID)) {
+            if (sdo_response.data[0] == 0x60 && sdo_response.data[1] == 0xFF && sdo_response.data[2] == 0x60 && sdo_response.data[3] == 0x00) {
+                PRINTF("Target Velocity set successfully.\n");
+            } else {
+                PRINTF("Error setting Target Velocity.\n");
+            }
+        }
+    }
 
 
 }
@@ -138,7 +164,7 @@ void update_nmt_state_machine(uint8_t node_id) {
 
             // Configurar el modo de operación
             // Aquí seleccionas el modo: Torque (0x0A) o Velocidad (0x09)
-            send_sdo_mode_of_operation(0x0A);  // 0x0A: Torque, 0x09: Velocidad
+            send_sdo_mode_of_operation(0x09);  // 0x0A: Torque, 0x09: Velocidad
 
             PRINTF("Pre-Operational Mode\n");
 
