@@ -208,7 +208,7 @@ bool can_readRxMsg(can_msg_t* msg)
 
     msg->id = rxBuffer.id >> STDID_OFFSET; // se guarda left-justified en 29bits o 11bits
     msg->len = rxBuffer.dlc;
-    msg->rtr = (rxBuffer.xtd == kMCAN_FrameIDStandard) ? 0 : 1;
+    msg->rtr = (rxBuffer.rtr == kMCAN_FrameTypeData) ? 0 : 1;
 
     return true;
 }
