@@ -46,12 +46,9 @@ int main(void)
 	init_sensor();
 	init_drivers();
 
-    while (true) {
-        update_nmt_state_machine(NODE_ID_1);
-        //PRINTF GPIO PINS FOR TEST
-//        PRINTF("%d %d %d %d\n", gpioRead(PRE_OP_GPIO_PORT), gpioRead(OP_GPIO_PORT), gpioRead(DRIVE_GPIO_PORT), gpioRead(STOP_GPIO_PORT));
-        //PRINTF for ADC values
-//        run_sensors();
+    while (1) {
+        update_state_machine(0x001);
+
     }
 }
 
