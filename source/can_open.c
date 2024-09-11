@@ -14,7 +14,7 @@
 ////////////////////////////////////////////////////
 
 
-bool send_sdo_write_command (uint8_t command, uint16_t od_index, uint8_t od_sub_index, uint32_t data, uint16_t node_id)
+bool send_sdo_write_command (uint8_t command, uint16_t od_index, uint8_t od_sub_index, int32_t data, uint16_t node_id)
 {
 	if(can_isTxReady())
 	{
@@ -47,7 +47,7 @@ bool send_sdo_write_command (uint8_t command, uint16_t od_index, uint8_t od_sub_
  *
  * 	@return 1 = Recive success
  */
-bool recive_sdo_write_command(uint8_t command, uint16_t od_index, uint8_t od_sub_index, uint32_t data, uint16_t node_id)
+bool recive_sdo_write_command(uint8_t command, uint16_t od_index, uint8_t od_sub_index, int32_t data, uint16_t node_id)
 {
 	can_msg_t sdo_reply;
 
@@ -69,6 +69,8 @@ bool recive_sdo_write_command(uint8_t command, uint16_t od_index, uint8_t od_sub
 				return true;
 			}
 		}
+		else
+			return false;
 	}
 }
 
@@ -159,6 +161,9 @@ void send_nmt_command(uint8_t command, uint16_t node_id) {
     nmt_msg.data[0] = command;  // Comando NMT (0x01 para Operational, 0x80 para Pre-operational)
     nmt_msg.data[1] = (uint8_t)node_id;  // Node ID del esclavo
 
-    while(!can_isTxReady());
-    can_sendTxMsg(&nmt_msg);
+    if(can_isTxReady())
+    {
+    	PRINTF("Sending NMT command\n");
+    	can_sendTxMsg(&nmt_msg);
+    }
 }

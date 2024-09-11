@@ -14,7 +14,9 @@ void send_pdo_sync_message(void);
 void recive_pdo_message(uint16_t node_id);
 void send_pdo_message(uint16_t node_id);
 bool send_controlword(uint8_t controlword, uint16_t node_id);
-bool send_sdo_mode_of_operation(uint8_t mode, uint16_t node_id);
+bool send_controlword_2(uint8_t controlword, uint16_t node_id);
+
+bool send_sdo_mode_of_operation(int8_t mode, uint16_t node_id);
 
 void map_rpdo(uint16_t node_id);
 void map_tpdo(uint16_t node_id);
@@ -47,12 +49,15 @@ void update_state_machine(uint16_t node_id)
             // Enviar comando para RESET NODE
             send_nmt_command(0x81, node_id);
 
+            while(!can_isNewRxMsg());
+
             // Mapp the PDO's
-        	map_rpdo(node_id);
-        	map_tpdo(node_id);
+//        	map_rpdo(node_id);
+//        	map_tpdo(node_id);
 
             if (can_isNewRxMsg())
             {
+            	PRINTF("NEW MSG\n");
                 can_msg_t rx_msg;
                 if (can_readRxMsg(&rx_msg)
                 		&& (rx_msg.id == (0x700 + node_id))
@@ -72,9 +77,11 @@ void update_state_machine(uint16_t node_id)
             if(send_sdo_write_command(0x40, 0x1810, 0x01, 0x00000000, node_id))
             	PRINTF("Init SDO command sent\n");
 
-			// Esperar la respuesta del esclavo
-			while(!recive_sdo_write_command(0x43, 0x1810, 0x01, 0x19030000, node_id))
-			PRINTF("Received SDO response\n");
+//			// Esperar la respuesta del esclavo
+//			while(!recive_sdo_write_command(0x43, 0x1810, 0x01, 0x19030000, node_id));
+//			PRINTF("Received SDO response\n");
+//
+			//PRINTF THE RESONSE
 
 
 
@@ -105,8 +112,19 @@ void update_state_machine(uint16_t node_id)
         	 // Enviar comando para Pre-operational
             send_nmt_command(0x80, node_id);
 
+            PRINTF("ALINEACION\n");
+            send_sdo_mode_of_operation(-4, node_id);
+
+            send_nmt_command(0x01, node_id);
+
+
+
+
+
+
+
             // Configurar el modo de operación
-            send_sdo_mode_of_operation(0x09, node_id);  // 0x09: Velocity mode
+//            send_sdo_mode_of_operation(9, node_id);  // 0x09: Velocity mode
 
             PRINTF("Pre-Operational Mode\n");
 
@@ -137,12 +155,11 @@ void update_state_machine(uint16_t node_id)
                 PRINTF("Drive Mode\n");
 
                 // Secuencia para habilitar el drive
-                bool cw_6 = send_controlword(0x06, node_id);   // Enviar CW 6 para preparar el sistema
-                bool cw_7 = send_controlword(0x07, node_id);   // Enviar CW 7 para habilitar el modo de operación
-                bool cw_15 = send_controlword(0x0F, node_id);  // Enviar CW 15 para habilitar la operación
+                bool cw_6 = send_controlword_2(0x06, node_id);   // Enviar CW 6 para preparar el sistema
+                bool cw_7 = send_controlword_2(0x07, node_id);   // Enviar CW 7 para habilitar el modo de operación
+                bool cw_15 = send_controlword_2(0x0F, node_id);  // Enviar CW 15 para habilitar la operación
 
-                if(cw_6 && cw_7 && cw_15)
-                	PRINTF("Control Word messages sent: cw_6: %d - cw_7: %d - cw_15: %d\n", cw_6, cw_7, cw_15);
+                PRINTF("Control Word messages sent: cw_6: %d - cw_7: %d - cw_15: %d\n", cw_6, cw_7, cw_15);
 
                 current_state = STATE_DRIVE;
                 if(gpioRead(PIN_LED_GREEN) == LED_ACTIVE)
@@ -325,14 +342,32 @@ void send_pdo_message(uint16_t node_id)
 bool send_controlword(uint8_t controlword, uint16_t node_id)
 {
     //Send SDO Write command
-	send_sdo_write_command(0x2B, 0x6040, 0x00, (uint32_t)( (controlword) | (node_id<<8) ), node_id); //data = 0x control_word + node_id
+	send_sdo_write_command(0x2B, 0x6040, 0x00, (int32_t)(controlword), node_id); //data = 0x control_word + node_id
 
 	//Wait for controller response
 	return recive_sdo_write_command(0x60, 0x6040, 0x00, 0x00000000, node_id);
 
 }
 
+bool send_controlword_2(uint8_t controlword, uint16_t node_id) {
+    can_msg_t control_msg;
+    control_msg.id = RPDO1_ID + node_id;  // RPDO1 para el control del driver
+    control_msg.len = 8;        // Longitud de datos (8 bytes)
 
+    // Configurar el Controlword
+    control_msg.data[0] = controlword;  // Byte bajo del Controlword
+    control_msg.data[1] = 0x01;         // Byte alto del Controlword (0 si no se usa)
+    // Otros bytes pueden ser configurados según sea necesario para parámetros adicionales
+    for (int i = 2; i < 8; i++) {
+        control_msg.data[i] = 0x00;  // Rellenar los bytes restantes con ceros
+    }
+
+    // Enviar el mensaje CAN
+    while (!can_isTxReady());
+    can_sendTxMsg(&control_msg);
+    PRINTF("Enviado Controlword 0x%02X al ID %03X\n", controlword, control_msg.id);
+    return true;
+}
 
 
 
@@ -352,9 +387,10 @@ bool send_controlword(uint8_t controlword, uint16_t node_id)
  * 	    0x08: Position
  * @return bool : 1 = Send success
  */
-bool send_sdo_mode_of_operation(uint8_t mode, uint16_t node_id)
+bool send_sdo_mode_of_operation(int8_t mode, uint16_t node_id)
 {
-	send_sdo_write_command(0x2F, 0x6060, 0x00, (uint32_t)mode, node_id);
+
+	send_sdo_write_command(0x2F, 0x6060, 0x00, (int32_t)mode, node_id);
 
 	//Wait for controller response
 	if (recive_sdo_write_command(0x60, 0x6060, 0x00, 0x00000000, node_id)) {

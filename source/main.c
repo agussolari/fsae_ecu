@@ -49,6 +49,13 @@ int main(void)
     while (1) {
         update_state_machine(0x001);
 
+//    	//PRINF SENSOR VALUES
+//    	run_sensors();
+//    	PRINTF("%d %d %d %d \n", sensor_values.throttle, sensor_values.brake, sensor_values.torque, sensor_values.direction);
+
+//    	//PRINTF BUTTONS VALUES
+//    	PRINTF("%d %d %d %d \n", gpioRead(PRE_OP_GPIO_PORT), gpioRead(OP_GPIO_PORT), gpioRead(DRIVE_GPIO_PORT), gpioRead(STOP_GPIO_PORT));
+
     }
 }
 

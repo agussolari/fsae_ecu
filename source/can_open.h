@@ -9,6 +9,7 @@
 #define CAN_OPEN_H_
 
 #include "can.h"
+#include "fsl_debug_console.h"
 ////////////////////////////////////////////////////
 //                 SDO WRITE                      //
 ////////////////////////////////////////////////////
@@ -28,7 +29,7 @@
  *       0x2F: 1 byte sent
  * @return 1 = Send success
  */
-bool send_sdo_write_command (uint8_t command, uint16_t od_index, uint8_t od_sub_index, uint32_t data, uint16_t node_id);
+bool send_sdo_write_command (uint8_t command, uint16_t od_index, uint8_t od_sub_index, int32_t data, uint16_t node_id);
 
 /**
  * @brief Receive a SDO Write message
@@ -37,7 +38,7 @@ bool send_sdo_write_command (uint8_t command, uint16_t od_index, uint8_t od_sub_
  *
  * 	@return 1 = Recive success
  */
-bool recive_sdo_write_command(uint8_t command, uint16_t od_index, uint8_t od_sub_index, uint32_t data, uint16_t node_id);
+bool recive_sdo_write_command(uint8_t command, uint16_t od_index, uint8_t od_sub_index, int32_t data, uint16_t node_id);
 
 
 ////////////////////////////////////////////////////
