@@ -27,7 +27,7 @@ void init_buttons(void);
 void run_sensors(void);
 
 typedef struct {
-	uint16_t throttle;
+	uint32_t throttle;
 	uint16_t brake;
 	uint16_t torque;
 	uint16_t direction;

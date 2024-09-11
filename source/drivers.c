@@ -16,6 +16,8 @@ void send_pdo_message(uint16_t node_id);
 bool send_controlword(uint8_t controlword, uint16_t node_id);
 bool send_sdo_mode_of_operation(uint8_t mode, uint16_t node_id);
 
+void map_rpdo(uint16_t node_id);
+void map_tpdo(uint16_t node_id);
 
 /**
  * @brief Initialize the drivers
@@ -42,7 +44,15 @@ void update_state_machine(uint16_t node_id)
             // Wait boot up message
             gpioBlink(PIN_LED_RED);
 
-            if (can_isNewRxMsg()) {
+            // Enviar comando para RESET NODE
+            send_nmt_command(0x81, node_id);
+
+            // Mapp the PDO's
+        	map_rpdo(node_id);
+        	map_tpdo(node_id);
+
+            if (can_isNewRxMsg())
+            {
                 can_msg_t rx_msg;
                 if (can_readRxMsg(&rx_msg)
                 		&& (rx_msg.id == (0x700 + node_id))
@@ -50,7 +60,6 @@ void update_state_machine(uint16_t node_id)
                 {
                     PRINTF("Boot-up message received.\n");
                     current_state = STATE_INITIALIZATION;
-
                 }
             }
             break;
@@ -92,7 +101,10 @@ void update_state_machine(uint16_t node_id)
 
         case STATE_PRE_OPERATIONAL:
 
-            send_nmt_command(0x80, node_id);  // Enviar comando para Pre-operational
+
+        	 // Enviar comando para Pre-operational
+            send_nmt_command(0x80, node_id);
+
             // Configurar el modo de operación
             send_sdo_mode_of_operation(0x09, node_id);  // 0x09: Velocity mode
 
@@ -187,56 +199,21 @@ void update_state_machine(uint16_t node_id)
 
 
 
-
+/**
+ * @brief Run the motors
+ * void run_motors (uint16_t node_id)
+ *
+ * @return void
+ */
 void run_motors (uint16_t node_id)
 {
-	//Send SYNC message every 2 seconds
-	send_pdo_sync_message();
 
-	recive_pdo_message(node_id);
+	send_pdo_sync_message();		//Send SYNC message every 2 seconds
 
-	send_pdo_message(node_id);
+	recive_pdo_message(node_id);	//Receive PDO message
+
+	send_pdo_message(node_id);		//Send PDO message
 }
-
-//    // Enviar los RPDOs con los comandos de control
-//    //PDO1: control word[2 bytes], target velocity[4 bytes], max torque[2 bytes]
-//    //PDO2: targuet position [4 bytes], other reserved[4 bytes]
-//
-////    uint8_t rpdo1Data[8] = { 0x0F, 0x00, 0x00, 0x00, (sensor_values.throttle) & 0xFF, (sensor_values.throttle >> 8) & 0xFF, sensor_values.torque & 0xFF, (sensor_values.torque >> 8) & 0xFF };
-////    uint8_t rpdo1Data[8] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, sensor_values.torque & 0xFF, (sensor_values.torque >> 8) & 0xFF };
-////    uint8_t rpdo1Data[8] = { 0x0F, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0, 0 };
-//
-////    uint8_t rpdo2Data[8] = {0x0F, 0x00, 0x00, 0x00};
-//
-////    send_can_message(RPDO1_ID, rpdo1Data, 8);
-////    send_can_message(RPDO2_ID, rpdo2Data, 4);
-//
-//    can_msg_t sdo_msg;
-//    sdo_msg.id = 0x581 + NODE_ID; // COB-ID del SDO Write
-//    sdo_msg.len = 8;
-//    sdo_msg.data[0] = 0x43;        // Comando SDO Write (4 bytes)
-//    sdo_msg.data[1] = 0xFF;        // Índice (byte bajo de 0x60FF)
-//    sdo_msg.data[2] = 0x60;        // Índice (byte alto de 0x60FF)
-//    sdo_msg.data[3] = 0x00;        // Subíndice (0x00)
-//    sdo_msg.data[4] = (sensor_values.throttle & 0xFF);       // Byte 0 del valor
-//    sdo_msg.data[5] = (sensor_values.throttle >> 8) & 0xFF;  // Byte 1 del valor
-//    sdo_msg.data[6] = (sensor_values.throttle >> 16) & 0xFF; // Byte 2 del valor
-//    sdo_msg.data[7] = (sensor_values.throttle >> 24) & 0xFF; // Byte 3 del valor
-//
-//    can_sendTxMsg(&sdo_msg);
-//
-//    can_msg_t sdo_response;
-//    if (can_isNewRxMsg()) {
-//        if (can_readRxMsg(&sdo_response) && sdo_response.id == (0x580 + NODE_ID)) {
-//            if (sdo_response.data[0] == 0x60 && sdo_response.data[1] == 0xFF && sdo_response.data[2] == 0x60 && sdo_response.data[3] == 0x00) {
-//                PRINTF("Target Velocity set successfully.\n");
-//            } else {
-//                PRINTF("Error setting Target Velocity.\n");
-//            }
-//        }
-//    }
-
-
 
 
 /**
@@ -245,7 +222,6 @@ void run_motors (uint16_t node_id)
  *
  * @return void
  */
-
 void send_pdo_sync_message(void)
 {
 	uint32_t current_time = millis();
@@ -259,8 +235,8 @@ void send_pdo_sync_message(void)
 		sync_msg.len = 1;
 		sync_msg.data[0] = 0x00;
 
-		while (!can_isTxReady());
-		can_sendTxMsg(&sync_msg);
+		if(can_isTxReady());
+			can_sendTxMsg(&sync_msg);
 	}
 }
 
@@ -279,19 +255,19 @@ void recive_pdo_message(uint16_t node_id)
 	if (can_isNewRxMsg()) {
 		if (can_readRxMsg(&rx_msg) && rx_msg.id == (TPDO1_ID + node_id ))
 		{
-
+			PRINTF("TPDO1 received\n");
 		}
 		if (can_readRxMsg(&rx_msg) && rx_msg.id == (TPDO2_ID + node_id ))
 		{
-
+			PRINTF("TPDO2 received\n");
 		}
 		if (can_readRxMsg(&rx_msg) && rx_msg.id == (TPDO3_ID + node_id ))
 		{
-
+			PRINTF("TPDO3 received\n");
 		}
 		if (can_readRxMsg(&rx_msg) && rx_msg.id == (TPDO4_ID + node_id ))
 		{
-
+			PRINTF("TPDO4 received\n");
 		}
 	}
 }
@@ -300,7 +276,14 @@ void recive_pdo_message(uint16_t node_id)
  * @brief Send a PDO message
  * void send_pdo_message(uint8_t node_id)
  *
+ * Send a PDO message to the node_id
+ *
+ * b[0], b[1]: Control word
+ * b[2], b[3], b[4], b[5]: Target velocity
+ * b[6], b[7]: Target torque
+ *
  * @return void
+ * uint32_t 0x00000000
  */
 void send_pdo_message(uint16_t node_id)
 {
@@ -309,19 +292,21 @@ void send_pdo_message(uint16_t node_id)
 	pdo_msg.id = RPDO1_ID + node_id;
 	pdo_msg.rtr = 0;
 	pdo_msg.len = 8;
+
 	pdo_msg.data[0] = 0x0F;
 	pdo_msg.data[1] = node_id;
 
-	pdo_msg.data[2] = 0x00;
-	pdo_msg.data[3] = 0x00;
-	pdo_msg.data[4] = 0xFF;
-	pdo_msg.data[5] = 0xFF;
-	pdo_msg.data[6] = 0x00;
-	pdo_msg.data[7] = 0x00;
 
-	while (!can_isTxReady())
-		;
-	can_sendTxMsg(&pdo_msg);
+	pdo_msg.data[2] = (uint8_t)(sensor_values.throttle & 0x000000FF) ;
+	pdo_msg.data[3] = (uint8_t)((sensor_values.throttle >> 8) & 0x000000FF);
+	pdo_msg.data[4] = (uint8_t)((sensor_values.throttle >> 16) & 0x000000FF);
+	pdo_msg.data[5] = (uint8_t)((sensor_values.throttle >> 24) & 0x000000FF);
+	pdo_msg.data[6] = (uint8_t)(sensor_values.torque & 0x00FF);
+	pdo_msg.data[7] = (uint8_t)((sensor_values.torque >> 8) & 0x00FF);
+
+	if(can_isTxReady())
+		can_sendTxMsg(&pdo_msg);
+
 }
 
 
@@ -386,6 +371,118 @@ bool send_sdo_mode_of_operation(uint8_t mode, uint16_t node_id)
 	}
 
 }
+
+/**
+ * @brief Map RPDO
+ * void map_rpdo(void)
+ *
+ * @return void
+ */
+void map_rpdo(uint16_t node_id)
+{
+    // Disable PDO communication
+    send_sdo_write_command(0x2B, 0x1400, 0x01, 0x80000000, node_id);
+
+    // Disable PDO mapping
+    send_sdo_write_command(0x2B, 0x1600, 0x00, 0x00, node_id);
+
+    // Map RPDO
+    // b[0], b[1]: Control word (0x6040, 0x00)
+    // b[2], b[3], b[4], b[5]: Target velocity 0x60FF, 0x00
+    // b[6], b[7]: Target torque 0x6071, 0x00
+
+
+    //Map number of entry: 3 entry
+    send_sdo_write_command(0x2F, 0x1600, 0x00, 0x03, node_id);
+
+    //Map Control Word: 0x6040, 0x00 (2 bytes)
+    send_sdo_write_command(0x23, 0x1600, 0x01, 0x60400010, node_id);
+    //Mpa Target velocity: 0x60FF, 0x00 (4 bytes)
+    send_sdo_write_command(0x23, 0x1600, 0x02, 0x60FF0020, node_id);
+    //Map Target torque: 0x6071, 0x00 (2 bytes)
+    send_sdo_write_command(0x23, 0x1600, 0x03, 0x60710010, node_id);
+
+
+
+    //Set transmission type to aynchronous
+    send_sdo_write_command(0x2B, 0x1400, 0x02, 0xFE, node_id);
+
+    //Set COB-ID to 0x200 + node_id
+    send_sdo_write_command(0x2B, 0x1400, 0x01, RPDO1_ID + node_id, node_id);
+
+    //Save parameters
+    send_sdo_write_command(0x23, 0x1010, 0x01, SAVE_PARAM, node_id);
+
+    //Reset node
+    send_nmt_command(0x81, node_id);
+
+}
+
+
+
+/**
+ * @brief Map TPDO
+ * void map_tpdo(void)
+ *
+ * @return void
+ */
+void map_tpdo(uint16_t node_id)
+{
+	// Disable PDO communication
+	send_sdo_write_command(0x2B, 0x1800, 0x01, 0x80000000, node_id);
+
+	// Disable PDO mapping
+	send_sdo_write_command(0x2B, 0x1A00, 0x00, 0x00, node_id);
+
+	// Map TPDO1
+	// b[0], b[1]: Status word (0x6041, 0x00)
+	// b[2], b[3], b[4], b[5]: Actual velocity 0x606C, 0x00
+	// b[6], b[7]: Actual torque 0x6077, 0x00
+
+	//Map number of entry: 3 entry
+	send_sdo_write_command(0x2F, 0x1A00, 0x00, 0x03, node_id);
+
+	//Map Status Word: 0x6041, 0x00 (2 bytes)
+	send_sdo_write_command(0x23, 0x1A00, 0x01, 0x60410010, node_id);
+	//Mpa Actual velocity: 0x606C, 0x00 (4 bytes)
+	send_sdo_write_command(0x23, 0x1A00, 0x02, 0x606C0020, node_id);
+	//Map Actual torque: 0x6077, 0x00 (2 bytes)
+	send_sdo_write_command(0x23, 0x1A00, 0x03, 0x60770010, node_id);
+
+	//Set transmission type to sync
+	send_sdo_write_command(0x2B, 0x1800, 0x02, 0x01, node_id);
+
+	//Set COB-ID to 0x180 + node_id
+	send_sdo_write_command(0x2B, 0x1800, 0x01, TPDO1_ID + node_id, node_id);
+
+	//Map TPDO2
+	// b[0], b[1], b[2], b[3]: Actual velocity value 0x606C, 0x00
+	// b[4]: Controller temperature 0x2026, 0x01
+
+	//Map number of entry: 2 entry
+	send_sdo_write_command(0x2F, 0x1A01, 0x00, 0x02, node_id);
+
+	//Map Actual velocity value: 0x606C, 0x00 (4 bytes)
+	send_sdo_write_command(0x23, 0x1A01, 0x01, 0x606C0020, node_id);
+	//Map Controller temperature: 0x2026, 0x01 (1 byte)
+	send_sdo_write_command(0x23, 0x1A01, 0x02, 0x20260108, node_id);
+
+	//Set transmission type to sync
+	send_sdo_write_command(0x2B, 0x1801, 0x02, 0x01, node_id);
+
+	//Set COB-ID to 0x280 + node_id
+	send_sdo_write_command(0x2B, 0x1801, 0x01, TPDO2_ID + node_id, node_id);
+
+	//Save parameters
+	send_sdo_write_command(0x23, 0x1010, 0x01, SAVE_PARAM, node_id);
+
+	//Reset node
+	send_nmt_command(0x81, node_id);
+
+}
+
+
+
 
 
 
