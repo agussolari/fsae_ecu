@@ -40,4 +40,4 @@ This project implements a motor control system using the **CANopen** protocol, d
 1. **Clone the Repository**:
    ```bash
    https://github.com/agussolari/fsae_ecu
-   
+

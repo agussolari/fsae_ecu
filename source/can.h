@@ -28,16 +28,17 @@
 #define CAN_MAX_ID   CAN_ID_MASK
 
 
+
 /*******************************************************************************
  * ENUMERATIONS AND STRUCTURES AND TYPEDEFS
  ******************************************************************************/
 
 typedef struct {
-    uint16_t    id;
-    uint8_t     len;
-    uint8_t     data[CAN_MAX_BYTES_PER_MSG];
+    uint16_t id : 11; // 11 bits for CAN ID
+    uint8_t rtr : 1; // 1 bit for RTR
+    uint8_t len : 4; // 4 bits for Data Length
+    uint8_t data[8]; // 0 - 8 bytes for Data
 } can_msg_t;
-
 
 /*******************************************************************************
  * VARIABLE PROTOTYPES WITH GLOBAL SCOPE
