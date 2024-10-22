@@ -17,9 +17,9 @@
 
 #define CAN_BAUDRATE			500000
 #define NODE_ID_1					1
-#define NODE_ID_2					11
+#define NODE_ID_2					2
+#define BASE_NODE 				0x100
 
-#define NODE_ID 				NODE_ID_1
 
 #define SYNC_MESSAGE_ID 		0x080
 #define RPDO1_ID 				(0x200)
@@ -44,6 +44,9 @@
 typedef enum {
     STATE_POWER_ON_RESET,
     STATE_INITIALIZATION,
+	STATE_ALIGN_MOTORS,
+	STATE_WAIT_ALIGN_MOTORS,
+	STATE_ALIGNING_MOTORS,
 	STATE_WAIT_PRE_OPERATIONAL,
     STATE_PRE_OPERATIONAL,
 	STATE_WAIT_OPERATIONAL,
@@ -53,11 +56,22 @@ typedef enum {
     STATE_STOPPED,
 } nmt_state_t;
 
+//Object of the driver
+typedef struct {
+	uint16_t node_id;
+	nmt_state_t state;
+	uint16_t error_code;
+	uint32_t time_stamp;
+	bool align;
+	uint8_t tpdo1_data[8];
+	uint8_t tpdo2_data[8];
+	uint8_t tpdo3_data[8];
+	uint8_t tpdo4_data[8];
+} driver_t;
 
 
-
-void init_drivers(void);
-void update_state_machine(uint16_t node_id);
+void init_drivers(driver_t* driver);
+void update_state_machine(driver_t* driver);
 
 
 #endif /* DRIVERS_H_ */

@@ -6,28 +6,32 @@
  */
 #include "drivers.h"
 
-static nmt_state_t current_state = STATE_POWER_ON_RESET;
-static uint32_t last_send_time = 0;
 
-void run_motors (uint16_t node_id);
-void send_pdo_sync_message(void);
-void recive_pdo_message(uint16_t node_id);
+void run_motors (driver_t* driver);
+void send_pdo_sync_message(driver_t* driver);
+void recive_pdo_message(driver_t* driver);
 void send_pdo_message(uint16_t node_id);
+
+//bool send_controlword(uint8_t controlword, uint16_t node_id);
 bool send_controlword(uint8_t controlword, uint16_t node_id);
-bool send_controlword_2(uint8_t controlword, uint16_t node_id);
 
 bool send_sdo_mode_of_operation(int8_t mode, uint16_t node_id);
 
 void map_rpdo(uint16_t node_id);
 void map_tpdo(uint16_t node_id);
 
+bool check_alignment_status(driver_t* driver);
+void align_motors(uint16_t node_id);
+
 /**
  * @brief Initialize the drivers
  * @return void
  */
-void init_drivers(void)
+void init_drivers(driver_t* driver)
 {
-	current_state = STATE_POWER_ON_RESET;
+	driver->state = STATE_POWER_ON_RESET;
+	driver->time_stamp = 0;
+
 	millis_init();
 
 }
@@ -38,16 +42,16 @@ void init_drivers(void)
  * @param node_id Node ID
  * @return void
  */
-void update_state_machine(uint16_t node_id)
+void update_state_machine(driver_t* driver)
 {
-    switch (current_state)
+    switch (driver->state)
     {
         case STATE_POWER_ON_RESET:
             // Wait boot up message
             gpioBlink(PIN_LED_RED);
 
             // Enviar comando para RESET NODE
-            send_nmt_command(0x81, node_id);
+            send_nmt_command(0x81, driver->node_id);
 
             while(!can_isNewRxMsg());
 
@@ -57,15 +61,15 @@ void update_state_machine(uint16_t node_id)
 
             if (can_isNewRxMsg())
             {
-            	PRINTF("NEW MSG\n");
                 can_msg_t rx_msg;
                 if (can_readRxMsg(&rx_msg)
-                		&& (rx_msg.id == (0x700 + node_id))
-						&& (rx_msg.data[1] == 0x00) )
+                		&& (rx_msg.id == (0x700 + driver->node_id))
+						&& (rx_msg.data[0] == 0x7F) )
                 {
                     PRINTF("Boot-up message received.\n");
-                    current_state = STATE_INITIALIZATION;
+                    driver->state = STATE_INITIALIZATION;
                 }
+
             }
             break;
 
@@ -74,18 +78,11 @@ void update_state_machine(uint16_t node_id)
             gpioBlink(PIN_LED_RED);
 
             // Acción: Enviar SDO request para leer el Object Dictionary (0x1018, subindex 0x01)
-            if(send_sdo_write_command(0x40, 0x1810, 0x01, 0x00000000, node_id))
+            if(send_sdo_write_command(0x40, 0x1810, 0x01, 0x00000000, driver->state))
             	PRINTF("Init SDO command sent\n");
 
-//			// Esperar la respuesta del esclavo
-//			while(!recive_sdo_write_command(0x43, 0x1810, 0x01, 0x19030000, node_id));
-//			PRINTF("Received SDO response\n");
-//
-			//PRINTF THE RESONSE
 
-
-
-            current_state = STATE_WAIT_PRE_OPERATIONAL;
+            driver->state = STATE_WAIT_PRE_OPERATIONAL;
             PRINTF("Initialization Mode\n");
 
             if(gpioRead(PIN_LED_RED) == LED_ACTIVE)
@@ -99,7 +96,7 @@ void update_state_machine(uint16_t node_id)
 
             if (gpioRead(PRE_OP_GPIO_PORT) == HIGH) // Esperar a que se presione el botón
             {
-                current_state = STATE_PRE_OPERATIONAL;
+            	driver->state = STATE_PRE_OPERATIONAL;
                 PRINTF("Pre-Operational Mode\n");
                 if(gpioRead(PIN_LED_RED) == LED_ACTIVE)
                 	gpioWrite(PIN_LED_RED, !LED_ACTIVE);
@@ -107,28 +104,44 @@ void update_state_machine(uint16_t node_id)
             break;
 
         case STATE_PRE_OPERATIONAL:
-
-
         	 // Enviar comando para Pre-operational
-            send_nmt_command(0x80, node_id);
-
-            PRINTF("ALINEACION\n");
-            send_sdo_mode_of_operation(-4, node_id);
-
-            send_nmt_command(0x01, node_id);
-
-
-
-
-
-
-
-            // Configurar el modo de operación
-//            send_sdo_mode_of_operation(9, node_id);  // 0x09: Velocity mode
-
+            send_nmt_command(0x80, driver->node_id);
             PRINTF("Pre-Operational Mode\n");
 
-            current_state = STATE_WAIT_OPERATIONAL;
+            driver->state = STATE_ALIGN_MOTORS;
+            break;
+
+
+        case STATE_ALIGN_MOTORS:
+			align_motors(driver->node_id);
+			PRINTF("Aligning motors\n");
+			driver->state = STATE_WAIT_ALIGN_MOTORS;
+			break;
+
+		case STATE_WAIT_ALIGN_MOTORS:
+			if(gpioRead(OP_GPIO_PORT) == HIGH)
+			{
+	            send_nmt_command(0x01, driver->node_id);
+                PRINTF("Operational Mode for align\n");
+                driver->state = STATE_ALIGNING_MOTORS;
+
+			}
+			break;
+
+		case STATE_ALIGNING_MOTORS:
+            gpioBlink(PIN_LED_GREEN);
+            if (check_alignment_status(driver)) {
+                PRINTF("Alignment Complete\n");
+
+                //Set mode in pre operational
+                send_nmt_command(0x80, driver->node_id);
+                PRINTF("Pre-Operational Mode\n");
+
+                //Set mode of operation to velocity
+                send_sdo_mode_of_operation(0x09, driver->node_id);
+
+                driver->state = STATE_WAIT_OPERATIONAL;
+            }
             break;
 
         case STATE_WAIT_OPERATIONAL:  // Pre Operational mode
@@ -136,15 +149,16 @@ void update_state_machine(uint16_t node_id)
 
             if(gpioRead(OP_GPIO_PORT) == HIGH) // Esperar a que se presione el botón
             {
-                current_state = STATE_OPERATIONAL;
+            	driver->state = STATE_OPERATIONAL;
                 PRINTF("Operational Mode\n");
             }
             break;
 
         case STATE_OPERATIONAL:
             // Enviar comando NMT para pasar a Operational
-            send_nmt_command(0x01, node_id);
-            current_state = STATE_WAIT_DRIVE;
+
+            send_nmt_command(0x01, driver->node_id);
+            driver->state = STATE_WAIT_DRIVE;
             break;
 
         case STATE_WAIT_DRIVE:  //In Operational mode
@@ -155,13 +169,13 @@ void update_state_machine(uint16_t node_id)
                 PRINTF("Drive Mode\n");
 
                 // Secuencia para habilitar el drive
-                bool cw_6 = send_controlword_2(0x06, node_id);   // Enviar CW 6 para preparar el sistema
-                bool cw_7 = send_controlword_2(0x07, node_id);   // Enviar CW 7 para habilitar el modo de operación
-                bool cw_15 = send_controlword_2(0x0F, node_id);  // Enviar CW 15 para habilitar la operación
+                bool cw_6 = send_controlword(0x06, driver->node_id);   // Enviar CW 6 para preparar el sistema
+                bool cw_7 = send_controlword(0x07, driver->node_id);   // Enviar CW 7 para habilitar el modo de operación
+                bool cw_15 = send_controlword(0x0F, driver->node_id);  // Enviar CW 15 para habilitar la operación
 
                 PRINTF("Control Word messages sent: cw_6: %d - cw_7: %d - cw_15: %d\n", cw_6, cw_7, cw_15);
 
-                current_state = STATE_DRIVE;
+                driver->state = STATE_DRIVE;
                 if(gpioRead(PIN_LED_GREEN) == LED_ACTIVE)
                 	gpioWrite(PIN_LED_GREEN, !LED_ACTIVE);
                 if(gpioRead(PIN_LED_BLUE) != LED_ACTIVE)
@@ -170,7 +184,7 @@ void update_state_machine(uint16_t node_id)
 
 			if (gpioRead(PRE_OP_GPIO_PORT) == HIGH)
 			{
-				current_state = STATE_PRE_OPERATIONAL;
+				driver->state = STATE_PRE_OPERATIONAL;
 				if (gpioRead(PIN_LED_RED) == LED_ACTIVE)
 					gpioWrite(PIN_LED_RED, !LED_ACTIVE);
 			}
@@ -179,39 +193,63 @@ void update_state_machine(uint16_t node_id)
         case STATE_DRIVE:
             // Aquí puedes comenzar a enviar comandos de torque o velocidad
             run_sensors();
-            run_motors(node_id);
+            run_motors(driver);
 
             if (gpioRead(STOP_GPIO_PORT) == HIGH) {
                 // Enviar comando NMT para pasar a STOP Mode
                 gpioMode(PIN_LED_RED, HIGH);
                 PRINTF("Stop Mode\n");
-                current_state = STATE_STOPPED;
+                driver->state = STATE_STOPPED;
             }
 			if (gpioRead(PRE_OP_GPIO_PORT) == HIGH)
 			{
-				current_state = STATE_PRE_OPERATIONAL;
+				driver->state = STATE_PRE_OPERATIONAL;
 				if (gpioRead(PIN_LED_RED) == LED_ACTIVE)
 					gpioWrite(PIN_LED_RED, !LED_ACTIVE);
 			}
 			if(gpioRead(OP_GPIO_PORT) == HIGH) // Esperar a que se presione el botón))
 			{
-				current_state = STATE_OPERATIONAL;
+				driver->state = STATE_OPERATIONAL;
 				if (gpioRead(PIN_LED_GREEN) == LED_ACTIVE)
 					gpioWrite(PIN_LED_GREEN, !LED_ACTIVE);
 			}
 			break;
 
         case STATE_STOPPED:
-            send_nmt_command(0x80, node_id);  // Volver a Pre-operational
-            current_state = STATE_PRE_OPERATIONAL;
+            send_nmt_command(0x80, driver->node_id);  // Volver a Pre-operational
+            driver->state = STATE_PRE_OPERATIONAL;
             break;
     }
 }
 
 
 
+// Function to align motors
+void align_motors(uint16_t node_id)
+{
+//    PRINTF("ALINEACION %d\n", node_id);
+    send_sdo_mode_of_operation(-4, node_id);
+}
 
 
+bool check_alignment_status(driver_t* driver)
+{
+	// Leer el estado de alineación de los motores
+	// Si los motores están alineados, retornar true
+	// De lo contrario, retornar false
+	int32_t state;
+
+	//Send SDO Read command
+	send_sdo_read_command(0x6060, 0x00, driver->node_id);
+
+	//Wait for controller response
+	state = recive_sdo_read_command(0x4F, 0x6060, 0x00, driver->node_id);
+
+	if(state == 0x0A) //Torque mode
+		return true;
+	else
+		return false;
+}
 
 
 
@@ -222,14 +260,14 @@ void update_state_machine(uint16_t node_id)
  *
  * @return void
  */
-void run_motors (uint16_t node_id)
+void run_motors (driver_t* driver)
 {
 
-	send_pdo_sync_message();		//Send SYNC message every 2 seconds
+	send_pdo_sync_message(driver);		//Send SYNC message every 2 seconds
 
-	recive_pdo_message(node_id);	//Receive PDO message
+	recive_pdo_message(driver);	//Receive PDO message
 
-	send_pdo_message(node_id);		//Send PDO message
+	send_pdo_message(driver->node_id);		//Send PDO message
 }
 
 
@@ -239,11 +277,11 @@ void run_motors (uint16_t node_id)
  *
  * @return void
  */
-void send_pdo_sync_message(void)
+void send_pdo_sync_message(driver_t* driver)
 {
 	uint32_t current_time = millis();
-	if (current_time - last_send_time >= 2000) {
-		last_send_time = current_time;
+	if (current_time - driver->time_stamp >= 2000) {
+		driver->time_stamp = current_time;
 
 		//Send SYNC message
 		can_msg_t sync_msg;
@@ -266,25 +304,29 @@ void send_pdo_sync_message(void)
  *
  * @return void
  */
-void recive_pdo_message(uint16_t node_id)
+void recive_pdo_message(driver_t* driver)
 {
 	can_msg_t rx_msg;
 	if (can_isNewRxMsg()) {
-		if (can_readRxMsg(&rx_msg) && rx_msg.id == (TPDO1_ID + node_id ))
+		if (can_readRxMsg(&rx_msg) && rx_msg.id == (TPDO1_ID + driver->node_id ))
 		{
-			PRINTF("TPDO1 received\n");
+			for (int i = 0; i < 8; i++)
+				driver->tpdo1_data[i] = rx_msg.data[i];
 		}
-		if (can_readRxMsg(&rx_msg) && rx_msg.id == (TPDO2_ID + node_id ))
+		if (can_readRxMsg(&rx_msg) && rx_msg.id == (TPDO2_ID + driver->node_id ))
 		{
-			PRINTF("TPDO2 received\n");
+			for (int i = 0; i < 8; i++)
+				driver->tpdo2_data[i] = rx_msg.data[i];
 		}
-		if (can_readRxMsg(&rx_msg) && rx_msg.id == (TPDO3_ID + node_id ))
+		if (can_readRxMsg(&rx_msg) && rx_msg.id == (TPDO3_ID + driver->node_id ))
 		{
-			PRINTF("TPDO3 received\n");
+			for (int i = 0; i < 8; i++)
+				driver->tpdo3_data[i] = rx_msg.data[i];
 		}
-		if (can_readRxMsg(&rx_msg) && rx_msg.id == (TPDO4_ID + node_id ))
+		if (can_readRxMsg(&rx_msg) && rx_msg.id == (TPDO4_ID + driver->node_id ))
 		{
-			PRINTF("TPDO4 received\n");
+			for (int i = 0; i < 8; i++)
+				driver->tpdo4_data[i] = rx_msg.data[i];
 		}
 	}
 }
@@ -339,17 +381,17 @@ void send_pdo_message(uint16_t node_id)
  *
  */
 
-bool send_controlword(uint8_t controlword, uint16_t node_id)
-{
-    //Send SDO Write command
-	send_sdo_write_command(0x2B, 0x6040, 0x00, (int32_t)(controlword), node_id); //data = 0x control_word + node_id
+//bool send_controlword(uint8_t controlword, uint16_t node_id)
+//{
+//    //Send SDO Write command
+//	send_sdo_write_command(0x2B, 0x6040, 0x00, (int32_t)(controlword), node_id); //data = 0x control_word + node_id
+//
+//	//Wait for controller response
+//	return recive_sdo_write_command(0x60, 0x6040, 0x00, 0x00000000, node_id);
+//
+//}
 
-	//Wait for controller response
-	return recive_sdo_write_command(0x60, 0x6040, 0x00, 0x00000000, node_id);
-
-}
-
-bool send_controlword_2(uint8_t controlword, uint16_t node_id) {
+bool send_controlword(uint8_t controlword, uint16_t node_id) {
     can_msg_t control_msg;
     control_msg.id = RPDO1_ID + node_id;  // RPDO1 para el control del driver
     control_msg.len = 8;        // Longitud de datos (8 bytes)

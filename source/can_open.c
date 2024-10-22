@@ -13,6 +13,17 @@
 //                 SDO WRITE                      //
 ////////////////////////////////////////////////////
 
+/***
+ * @brief Send a SDO Write command
+ * bool send_sdo_command(uint8_t command, uint16_t od_index,
+ * uint8_t od_sub_index, uint32_t data, uint8_t node_id)
+ *
+ * @return bool : 1 = send success
+ * command: 0x23 = Write 4 bytes
+ * command: 0x2F = Write 3 bytes
+ * command: 0x2B = Write 2 bytes
+ * command: 0x27 = Write 1 byte
+ */
 
 bool send_sdo_write_command (uint8_t command, uint16_t od_index, uint8_t od_sub_index, int32_t data, uint16_t node_id)
 {
@@ -163,7 +174,7 @@ void send_nmt_command(uint8_t command, uint16_t node_id) {
 
     if(can_isTxReady())
     {
-    	PRINTF("Sending NMT command\n");
+//    	PRINTF("Sending NMT command\n");
     	can_sendTxMsg(&nmt_msg);
     }
 }
