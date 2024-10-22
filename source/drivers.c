@@ -53,6 +53,9 @@ void update_state_machine(driver_t* driver)
             // Enviar comando para RESET NODE
             send_nmt_command(0x81, driver->node_id);
 
+            //Align in false
+            driver->align = false;
+
             while(!can_isNewRxMsg());
 
             // Mapp the PDO's
@@ -113,6 +116,9 @@ void update_state_machine(driver_t* driver)
 
 
         case STATE_ALIGN_MOTORS:
+        	if(driver->align == true)
+        		driver->state = STATE_WAIT_OPERATIONAL;
+
 			align_motors(driver->node_id);
 			PRINTF("Aligning motors\n");
 			driver->state = STATE_WAIT_ALIGN_MOTORS;
@@ -124,14 +130,22 @@ void update_state_machine(driver_t* driver)
 	            send_nmt_command(0x01, driver->node_id);
                 PRINTF("Operational Mode for align\n");
                 driver->state = STATE_ALIGNING_MOTORS;
-
 			}
+			if (gpioRead(PRE_OP_GPIO_PORT) == HIGH)
+			{
+				driver->state = STATE_PRE_OPERATIONAL;
+				if (gpioRead(PIN_LED_RED) == LED_ACTIVE)
+					gpioWrite(PIN_LED_RED, !LED_ACTIVE);
+			}
+
 			break;
 
 		case STATE_ALIGNING_MOTORS:
             gpioBlink(PIN_LED_GREEN);
             if (check_alignment_status(driver)) {
                 PRINTF("Alignment Complete\n");
+
+                driver->align = true;
 
                 //Set mode in pre operational
                 send_nmt_command(0x80, driver->node_id);
@@ -187,6 +201,13 @@ void update_state_machine(driver_t* driver)
 				driver->state = STATE_PRE_OPERATIONAL;
 				if (gpioRead(PIN_LED_RED) == LED_ACTIVE)
 					gpioWrite(PIN_LED_RED, !LED_ACTIVE);
+			}
+
+			if (gpioRead(OP_GPIO_PORT) == HIGH)
+			{
+				driver->state = STATE_OPERATIONAL;
+				if (gpioRead(PIN_LED_GREEN) == LED_ACTIVE)
+					gpioWrite(PIN_LED_GREEN, !LED_ACTIVE);
 			}
             break;
 
