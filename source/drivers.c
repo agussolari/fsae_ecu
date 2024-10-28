@@ -5,14 +5,16 @@
  *      Author: asolari
  */
 #include "drivers.h"
+#include <stdio.h>
+
+static bool flag = false;
 
 
 void run_motors (driver_t* driver);
 void send_pdo_sync_message(driver_t* driver);
 void recive_pdo_message(driver_t* driver);
-void send_pdo_message(uint16_t node_id);
+void send_pdo_message(driver_t* driver);
 
-//bool send_controlword(uint8_t controlword, uint16_t node_id);
 bool send_controlword(uint8_t controlword, uint16_t node_id);
 
 bool send_sdo_mode_of_operation(int8_t mode, uint16_t node_id);
@@ -22,6 +24,7 @@ void map_tpdo(uint16_t node_id);
 
 bool check_alignment_status(driver_t* driver);
 void align_motors(uint16_t node_id);
+void handle_errors(void);
 
 /**
  * @brief Initialize the drivers
@@ -46,21 +49,19 @@ void update_state_machine(driver_t* driver)
 {
     switch (driver->state)
     {
-        case STATE_POWER_ON_RESET:
-            // Wait boot up message
-            gpioBlink(PIN_LED_RED);
-
-            // Enviar comando para RESET NODE
+    	case STATE_RESET_NODE:
+    		// Enviar comando para RESET NODE
             send_nmt_command(0x81, driver->node_id);
 
+        case STATE_POWER_ON_RESET:
             //Align in false
             driver->align = false;
 
-            while(!can_isNewRxMsg());
+//            while(!can_isTxReady());
 
             // Mapp the PDO's
-//        	map_rpdo(node_id);
-//        	map_tpdo(node_id);
+//        	map_rpdo(driver->node_id);
+//        	map_tpdo(driver->node_id);
 
             if (can_isNewRxMsg())
             {
@@ -77,32 +78,21 @@ void update_state_machine(driver_t* driver)
             break;
 
         case STATE_INITIALIZATION:
-
-            gpioBlink(PIN_LED_RED);
-
             // Acción: Enviar SDO request para leer el Object Dictionary (0x1018, subindex 0x01)
             if(send_sdo_write_command(0x40, 0x1810, 0x01, 0x00000000, driver->state))
             	PRINTF("Init SDO command sent\n");
 
-
             driver->state = STATE_WAIT_PRE_OPERATIONAL;
             PRINTF("Initialization Mode\n");
-
-            if(gpioRead(PIN_LED_RED) == LED_ACTIVE)
-            	gpioWrite(PIN_LED_RED, !LED_ACTIVE);
 
             break;
 
         case STATE_WAIT_PRE_OPERATIONAL:
-            gpioBlink(PIN_LED_RED);
             // Esperar a que el botón de PRE-OP sea presionado
-
             if (gpioRead(PRE_OP_GPIO_PORT) == HIGH) // Esperar a que se presione el botón
             {
             	driver->state = STATE_PRE_OPERATIONAL;
                 PRINTF("Pre-Operational Mode\n");
-                if(gpioRead(PIN_LED_RED) == LED_ACTIVE)
-                	gpioWrite(PIN_LED_RED, !LED_ACTIVE);
             }
             break;
 
@@ -117,11 +107,16 @@ void update_state_machine(driver_t* driver)
 
         case STATE_ALIGN_MOTORS:
         	if(driver->align == true)
+        	{
         		driver->state = STATE_WAIT_OPERATIONAL;
+        	}
+        	else
+        	{
+				align_motors(driver->node_id);
+				PRINTF("Aligning motors\n");
+				driver->state = STATE_WAIT_ALIGN_MOTORS;
+        	}
 
-			align_motors(driver->node_id);
-			PRINTF("Aligning motors\n");
-			driver->state = STATE_WAIT_ALIGN_MOTORS;
 			break;
 
 		case STATE_WAIT_ALIGN_MOTORS:
@@ -134,15 +129,15 @@ void update_state_machine(driver_t* driver)
 			if (gpioRead(PRE_OP_GPIO_PORT) == HIGH)
 			{
 				driver->state = STATE_PRE_OPERATIONAL;
-				if (gpioRead(PIN_LED_RED) == LED_ACTIVE)
-					gpioWrite(PIN_LED_RED, !LED_ACTIVE);
 			}
 
 			break;
 
 		case STATE_ALIGNING_MOTORS:
-            gpioBlink(PIN_LED_GREEN);
-            if (check_alignment_status(driver)) {
+			//Send SDO Read for state of alignment
+//			send_sdo_read_command(0x6060, 0x00, driver->node_id);
+            if (check_alignment_status(driver))
+            {
                 PRINTF("Alignment Complete\n");
 
                 driver->align = true;
@@ -153,13 +148,26 @@ void update_state_machine(driver_t* driver)
 
                 //Set mode of operation to velocity
                 send_sdo_mode_of_operation(0x09, driver->node_id);
+                PRINTF("Mode of operation set to Velocity\n");
 
-                driver->state = STATE_WAIT_OPERATIONAL;
+
+                PRINTF("Operational Mode\n");
+                driver->state = STATE_OPERATIONAL;
             }
+
+            else if (gpioRead(PRE_OP_GPIO_PORT) == HIGH)
+			{
+				driver->state = STATE_PRE_OPERATIONAL;
+			}
+
+            else if(gpioRead(STOP_GPIO_PORT) == HIGH) // Esperar a que se presione el botón)
+			{
+				driver->state = STATE_STOPPED;
+			}
+
             break;
 
         case STATE_WAIT_OPERATIONAL:  // Pre Operational mode
-            gpioBlink(PIN_LED_GREEN);
 
             if(gpioRead(OP_GPIO_PORT) == HIGH) // Esperar a que se presione el botón
             {
@@ -170,14 +178,11 @@ void update_state_machine(driver_t* driver)
 
         case STATE_OPERATIONAL:
             // Enviar comando NMT para pasar a Operational
-
             send_nmt_command(0x01, driver->node_id);
             driver->state = STATE_WAIT_DRIVE;
             break;
 
         case STATE_WAIT_DRIVE:  //In Operational mode
-            gpioWrite(PIN_LED_GREEN, HIGH);
-
             if (gpioRead(DRIVE_GPIO_PORT) == HIGH)
             {
                 PRINTF("Drive Mode\n");
@@ -187,27 +192,18 @@ void update_state_machine(driver_t* driver)
                 bool cw_7 = send_controlword(0x07, driver->node_id);   // Enviar CW 7 para habilitar el modo de operación
                 bool cw_15 = send_controlword(0x0F, driver->node_id);  // Enviar CW 15 para habilitar la operación
 
-                PRINTF("Control Word messages sent: cw_6: %d - cw_7: %d - cw_15: %d\n", cw_6, cw_7, cw_15);
 
                 driver->state = STATE_DRIVE;
-                if(gpioRead(PIN_LED_GREEN) == LED_ACTIVE)
-                	gpioWrite(PIN_LED_GREEN, !LED_ACTIVE);
-                if(gpioRead(PIN_LED_BLUE) != LED_ACTIVE)
-                	gpioWrite(PIN_LED_BLUE, LED_ACTIVE);
             }
 
 			if (gpioRead(PRE_OP_GPIO_PORT) == HIGH)
 			{
 				driver->state = STATE_PRE_OPERATIONAL;
-				if (gpioRead(PIN_LED_RED) == LED_ACTIVE)
-					gpioWrite(PIN_LED_RED, !LED_ACTIVE);
 			}
 
 			if (gpioRead(OP_GPIO_PORT) == HIGH)
 			{
 				driver->state = STATE_OPERATIONAL;
-				if (gpioRead(PIN_LED_GREEN) == LED_ACTIVE)
-					gpioWrite(PIN_LED_GREEN, !LED_ACTIVE);
 			}
             break;
 
@@ -215,32 +211,33 @@ void update_state_machine(driver_t* driver)
             // Aquí puedes comenzar a enviar comandos de torque o velocidad
             run_sensors();
             run_motors(driver);
+            handle_errors();
 
-            if (gpioRead(STOP_GPIO_PORT) == HIGH) {
-                // Enviar comando NMT para pasar a STOP Mode
-                gpioMode(PIN_LED_RED, HIGH);
-                PRINTF("Stop Mode\n");
+            if (gpioRead(STOP_GPIO_PORT) == HIGH)
+            {
                 driver->state = STATE_STOPPED;
             }
 			if (gpioRead(PRE_OP_GPIO_PORT) == HIGH)
 			{
 				driver->state = STATE_PRE_OPERATIONAL;
-				if (gpioRead(PIN_LED_RED) == LED_ACTIVE)
-					gpioWrite(PIN_LED_RED, !LED_ACTIVE);
 			}
 			if(gpioRead(OP_GPIO_PORT) == HIGH) // Esperar a que se presione el botón))
 			{
 				driver->state = STATE_OPERATIONAL;
-				if (gpioRead(PIN_LED_GREEN) == LED_ACTIVE)
-					gpioWrite(PIN_LED_GREEN, !LED_ACTIVE);
 			}
 			break;
 
         case STATE_STOPPED:
+            PRINTF("Stop Mode\n");
             send_nmt_command(0x80, driver->node_id);  // Volver a Pre-operational
-            driver->state = STATE_PRE_OPERATIONAL;
+            driver->state = STATE_INITIALIZATION;
             break;
     }
+}
+
+void handle_errors()
+{
+	handle_implausibility(); // Check for implausibility of TPS sensors
 }
 
 
@@ -248,9 +245,10 @@ void update_state_machine(driver_t* driver)
 // Function to align motors
 void align_motors(uint16_t node_id)
 {
-//    PRINTF("ALINEACION %d\n", node_id);
     send_sdo_mode_of_operation(-4, node_id);
 }
+
+static time_t last_time = 0;
 
 
 bool check_alignment_status(driver_t* driver)
@@ -260,11 +258,17 @@ bool check_alignment_status(driver_t* driver)
 	// De lo contrario, retornar false
 	int32_t state;
 
-	//Send SDO Read command
-	send_sdo_read_command(0x6060, 0x00, driver->node_id);
+    time_t current_time = millis();
+    if (current_time - last_time >= 2000)
+    {
+        last_time = current_time;
+        send_sdo_read_command(0x6060, 0x00, driver->node_id);
+    }
+
+
 
 	//Wait for controller response
-	state = recive_sdo_read_command(0x4F, 0x6060, 0x00, driver->node_id);
+	state = recive_sdo_read_command(0x43, 0x6060, 0x00, driver->node_id);
 
 	if(state == 0x0A) //Torque mode
 		return true;
@@ -288,7 +292,7 @@ void run_motors (driver_t* driver)
 
 	recive_pdo_message(driver);	//Receive PDO message
 
-	send_pdo_message(driver->node_id);		//Send PDO message
+	send_pdo_message(driver);		//Send PDO message
 }
 
 
@@ -329,23 +333,32 @@ void recive_pdo_message(driver_t* driver)
 {
 	can_msg_t rx_msg;
 	if (can_isNewRxMsg()) {
-		if (can_readRxMsg(&rx_msg) && rx_msg.id == (TPDO1_ID + driver->node_id ))
+		can_readRxMsg(&rx_msg);
+
+		PRINTF("Received message ID: %03X\n", rx_msg.id);
+
+
+		if (rx_msg.id == (TPDO1_ID + driver->node_id ))
 		{
+			PRINTF("TPDO1 received\n");
 			for (int i = 0; i < 8; i++)
 				driver->tpdo1_data[i] = rx_msg.data[i];
 		}
-		if (can_readRxMsg(&rx_msg) && rx_msg.id == (TPDO2_ID + driver->node_id ))
+		if ( rx_msg.id == (TPDO2_ID + driver->node_id ))
 		{
+			PRINTF("TPDO2 received\n");
 			for (int i = 0; i < 8; i++)
 				driver->tpdo2_data[i] = rx_msg.data[i];
 		}
-		if (can_readRxMsg(&rx_msg) && rx_msg.id == (TPDO3_ID + driver->node_id ))
+		if ( rx_msg.id == (TPDO3_ID + driver->node_id ))
 		{
+			PRINTF("TPDO3 received\n");
 			for (int i = 0; i < 8; i++)
 				driver->tpdo3_data[i] = rx_msg.data[i];
 		}
-		if (can_readRxMsg(&rx_msg) && rx_msg.id == (TPDO4_ID + driver->node_id ))
+		if (rx_msg.id == (TPDO4_ID + driver->node_id ))
 		{
+			PRINTF("TPDO4 received\n");
 			for (int i = 0; i < 8; i++)
 				driver->tpdo4_data[i] = rx_msg.data[i];
 		}
@@ -365,28 +378,101 @@ void recive_pdo_message(driver_t* driver)
  * @return void
  * uint32_t 0x00000000
  */
-void send_pdo_message(uint16_t node_id)
+//void send_pdo_message(driver_t* driver)
+//{
+//
+//	can_msg_t pdo_msg;
+//	pdo_msg.id = RPDO1_ID + driver->node_id;
+//	pdo_msg.rtr = 0;
+//	pdo_msg.len = 8;
+//
+//	pdo_msg.data[0] = 0x0F;
+//	pdo_msg.data[1] = driver->node_id;
+//
+//
+//	pdo_msg.data[2] = (uint8_t)(sensor_values.throttle & 0x000000FF) ;
+//	pdo_msg.data[3] = (uint8_t)((sensor_values.throttle >> 8) & 0x000000FF);
+//	pdo_msg.data[4] = (uint8_t)((sensor_values.throttle >> 16) & 0x000000FF);
+//	pdo_msg.data[5] = (uint8_t)((sensor_values.throttle >> 24) & 0x000000FF);
+//	driver->target_velocity = sensor_values.throttle;
+//
+//
+//	pdo_msg.data[6] = (uint8_t)(sensor_values.torque & 0x00FF);
+//	pdo_msg.data[7] = (uint8_t)((sensor_values.torque >> 8) & 0x00FF);
+//	driver->target_torque = sensor_values.torque;
+//
+//	if(can_isTxReady())
+//		can_sendTxMsg(&pdo_msg);
+//
+//}
+
+// Update the send_pdo_message function
+void send_pdo_message(driver_t* driver)
 {
+    const int32_t throttle_threshold = 5; // Define a suitable threshold
+    const int16_t torque_threshold = 5;   // Define a suitable threshold
 
-	can_msg_t pdo_msg;
-	pdo_msg.id = RPDO1_ID + node_id;
-	pdo_msg.rtr = 0;
-	pdo_msg.len = 8;
+    int32_t current_throttle = sensor_values.throttle;
+    int16_t current_torque = sensor_values.torque;
 
-	pdo_msg.data[0] = 0x0F;
-	pdo_msg.data[1] = node_id;
+    // Check if sensor values are zero
+    if (current_throttle == 0 && current_torque == 0) {
+        if (!driver->zero_message_sent) {
+            can_msg_t pdo_msg;
+            pdo_msg.id = RPDO1_ID + driver->node_id;
+            pdo_msg.rtr = 0;
+            pdo_msg.len = 8;
 
+            pdo_msg.data[0] = 0x0F;
+            pdo_msg.data[1] = driver->node_id;
 
-	pdo_msg.data[2] = (uint8_t)(sensor_values.throttle & 0x000000FF) ;
-	pdo_msg.data[3] = (uint8_t)((sensor_values.throttle >> 8) & 0x000000FF);
-	pdo_msg.data[4] = (uint8_t)((sensor_values.throttle >> 16) & 0x000000FF);
-	pdo_msg.data[5] = (uint8_t)((sensor_values.throttle >> 24) & 0x000000FF);
-	pdo_msg.data[6] = (uint8_t)(sensor_values.torque & 0x00FF);
-	pdo_msg.data[7] = (uint8_t)((sensor_values.torque >> 8) & 0x00FF);
+            pdo_msg.data[2] = 0;
+            pdo_msg.data[3] = 0;
+            pdo_msg.data[4] = 0;
+            pdo_msg.data[5] = 0;
+            driver->target_velocity = 0;
 
-	if(can_isTxReady())
-		can_sendTxMsg(&pdo_msg);
+            pdo_msg.data[6] = 0;
+            pdo_msg.data[7] = 0;
+            driver->target_torque = 0;
 
+            if (can_isTxReady())
+                can_sendTxMsg(&pdo_msg);
+
+            driver->zero_message_sent = true;
+        }
+    } else {
+        driver->zero_message_sent = false;
+
+        if (abs(current_throttle - driver->prev_throttle) > throttle_threshold ||
+            abs(current_torque - driver->prev_torque) > torque_threshold)
+        {
+            can_msg_t pdo_msg;
+            pdo_msg.id = RPDO1_ID + driver->node_id;
+            pdo_msg.rtr = 0;
+            pdo_msg.len = 8;
+
+            pdo_msg.data[0] = 0x0F;
+            pdo_msg.data[1] = driver->node_id;
+
+            pdo_msg.data[2] = (uint8_t)(current_throttle & 0x000000FF);
+            pdo_msg.data[3] = (uint8_t)((current_throttle >> 8) & 0x000000FF);
+            pdo_msg.data[4] = (uint8_t)((current_throttle >> 16) & 0x000000FF);
+            pdo_msg.data[5] = (uint8_t)((current_throttle >> 24) & 0x000000FF);
+            driver->target_velocity = current_throttle;
+
+            pdo_msg.data[6] = (uint8_t)(current_torque & 0x00FF);
+            pdo_msg.data[7] = (uint8_t)((current_torque >> 8) & 0x00FF);
+            driver->target_torque = current_torque;
+
+            if (can_isTxReady())
+                can_sendTxMsg(&pdo_msg);
+
+            // Update previous values
+            driver->prev_throttle = current_throttle;
+            driver->prev_torque = current_torque;
+        }
+    }
 }
 
 
@@ -543,7 +629,7 @@ void map_tpdo(uint16_t node_id)
 
 	//Map Status Word: 0x6041, 0x00 (2 bytes)
 	send_sdo_write_command(0x23, 0x1A00, 0x01, 0x60410010, node_id);
-	//Mpa Actual velocity: 0x606C, 0x00 (4 bytes)
+	//Map Actual velocity: 0x606C, 0x00 (4 bytes)
 	send_sdo_write_command(0x23, 0x1A00, 0x02, 0x606C0020, node_id);
 	//Map Actual torque: 0x6077, 0x00 (2 bytes)
 	send_sdo_write_command(0x23, 0x1A00, 0x03, 0x60770010, node_id);
@@ -557,14 +643,20 @@ void map_tpdo(uint16_t node_id)
 	//Map TPDO2
 	// b[0], b[1], b[2], b[3]: Actual velocity value 0x606C, 0x00
 	// b[4]: Controller temperature 0x2026, 0x01
+	// b[5]: Motor temperature 0x2027, 0x01
+	// b[6], b[7]: Actual motor current 0x6078, 0x02
 
 	//Map number of entry: 2 entry
-	send_sdo_write_command(0x2F, 0x1A01, 0x00, 0x02, node_id);
+	send_sdo_write_command(0x2F, 0x1A01, 0x00, 0x04, node_id);
 
 	//Map Actual velocity value: 0x606C, 0x00 (4 bytes)
 	send_sdo_write_command(0x23, 0x1A01, 0x01, 0x606C0020, node_id);
 	//Map Controller temperature: 0x2026, 0x01 (1 byte)
 	send_sdo_write_command(0x23, 0x1A01, 0x02, 0x20260108, node_id);
+	//Map Motor temperature: 0x2027, 0x01 (1 byte)
+	send_sdo_write_command(0x23, 0x1A01, 0x03, 0x20250108, node_id);
+	//Map Actual motor current: 0x6078, 0x02 (2 bytes)
+	send_sdo_write_command(0x23, 0x1A01, 0x04, 0x60780210, node_id);
 
 	//Set transmission type to sync
 	send_sdo_write_command(0x2B, 0x1801, 0x02, 0x01, node_id);
@@ -579,6 +671,116 @@ void map_tpdo(uint16_t node_id)
 	send_nmt_command(0x81, node_id);
 
 }
+
+
+
+void send_motor_data_uart(driver_t* driver) {
+    const char* motor_state;
+    const char* operation_mode;
+    int target_velocity = driver->target_velocity; // Reemplazar con el valor real
+
+    //tpdo[1] = b[2], b[3], b[4], b[5]
+    int actual_velocity = driver->tpdo1_data[2] | driver->tpdo1_data[3] << 8 | driver->tpdo1_data[4] << 16 | driver->tpdo1_data[5] << 24;
+    float current = driver->tpdo2_data[6] | driver->tpdo2_data[7] << 8; // Reemplazar con el valor real
+    float actual_torque = driver->tpdo1_data[6] | driver->tpdo1_data[7] << 8; // Reemplazar con el valor real
+    float desired_torque = (float)(driver->target_torque); // Reemplazar con el valor real
+    float temperature = driver->tpdo2_data[5]; // Reemplazar con el valor real
+    int error_indicator = 0; // Reemplazar con el valor real
+
+    // Determinar el estado del motor
+    switch (driver->state) {
+        case STATE_PRE_OPERATIONAL:
+            motor_state = "Pre-operacional";
+            break;
+        case STATE_OPERATIONAL:
+            motor_state = "Operacional";
+            break;
+        case STATE_DRIVE:
+            motor_state = "Drive";
+            break;
+        case STATE_STOPPED:
+            motor_state = "Stop";
+            break;
+        default:
+            motor_state = "Unknown";
+            break;
+    }
+
+    // Determinar el modo de operación
+//    switch (driver->mode) {
+//        case MODE_VELOCITY:
+//            operation_mode = "Velocidad";
+//            break;
+//        case MODE_TORQUE:
+//            operation_mode = "Torque";
+//            break;
+//        case MODE_ALIGNMENT:
+//            operation_mode = "Alineación";
+//            break;
+//        default:
+//            operation_mode = "Unknown";
+//            break;
+//    }
+
+    // Formatear los datos manualmente
+    char buffer[256] = {0};
+    char temp[50];
+
+    // Concatenar node_id
+    itoa(driver->node_id, temp, 10);
+    strcat(buffer, temp);
+    strcat(buffer, ",");
+
+    // Concatenar motor_state
+    strcat(buffer, motor_state);
+    strcat(buffer, ",");
+
+    // Concatenar operation_mode
+    strcat(buffer, operation_mode);
+    strcat(buffer, ",");
+
+    // Concatenar target_velocity
+    itoa(target_velocity, temp, 10);
+    strcat(buffer, temp);
+    strcat(buffer, ",");
+
+    // Concatenar actual_velocity
+    itoa(actual_velocity, temp, 10);
+    strcat(buffer, temp);
+    strcat(buffer, ",");
+
+    // Concatenar current
+    snprintf(temp, sizeof(temp), "%.2f", current);
+    strcat(buffer, temp);
+    strcat(buffer, ",");
+
+    // Concatenar actual_torque
+    snprintf(temp, sizeof(temp), "%.2f", actual_torque);
+    strcat(buffer, temp);
+    strcat(buffer, ",");
+
+    // Concatenar desired_torque
+    snprintf(temp, sizeof(temp), "%.2f", desired_torque);
+    strcat(buffer, temp);
+    strcat(buffer, ",");
+
+    // Concatenar temperature
+    snprintf(temp, sizeof(temp), "%.2f", temperature);
+    strcat(buffer, temp);
+    strcat(buffer, ",");
+
+    // Concatenar error_indicator
+    itoa(error_indicator, temp, 10);
+    strcat(buffer, temp);
+
+    strcat(buffer, "\n");
+
+    // Enviar los datos por UART
+    uartWriteStr(buffer);
+
+
+}
+
 
 
 

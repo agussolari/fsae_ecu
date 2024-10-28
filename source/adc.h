@@ -53,6 +53,8 @@ typedef enum {
 	ADC_CANT_PAIR
 } adc_pair_t;
 
+#define ADC_MAX_VALUE 65535
+
 
 /*******************************************************************************
  * VARIABLE PROTOTYPES WITH GLOBAL SCOPE

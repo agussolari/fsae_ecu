@@ -14,7 +14,7 @@
 
 #define UART_NUM    0
 
-#define UART_BAUDRATE   115200
+#define UART_BAUDRATE   9600
 
 //#define UART_RX_BUFFER_SIZE 64
 #define UART_TX_BUFFER_SIZE 250

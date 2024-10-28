@@ -43,7 +43,7 @@ bool send_sdo_write_command (uint8_t command, uint16_t od_index, uint8_t od_sub_
 		sdo_msg.data[6] = (uint8_t)((data >> 16) & 0x000000FF); // Byte 2 del valor
 		sdo_msg.data[7] = (uint8_t)((data >> 24) & 0x000000FF); // Byte 3 del valor
 
-		while(!can_isTxReady());
+//		while(!can_isTxReady());
 		bool flag = can_sendTxMsg(&sdo_msg);
 
 		return flag;
@@ -112,7 +112,7 @@ bool send_sdo_read_command(uint16_t od_index, uint8_t od_sub_index, uint16_t nod
 	sdo_msg.data[7] = 0x00; // Byte 3 del valor
 
 
-	while(!can_isTxReady());
+//	while(!can_isTxReady());
 	bool flag = can_sendTxMsg(&sdo_msg);
 
 	return flag;
