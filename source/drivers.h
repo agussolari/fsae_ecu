@@ -38,10 +38,6 @@
 
 #define SAVE_PARAM 				(uint32_t)(0x65766173)
 
-#define MODE_VELOCITY            0x09
-#define MODE_TORQUE              0x0A
-#define MODE_ALIGNMENT           -4
-
 
 
 typedef enum {
@@ -60,23 +56,117 @@ typedef enum {
     STATE_STOPPED,
 } nmt_state_t;
 
+typedef enum {
+	ERROR_NONE,
+	ERROR_GENERIC,
+	ERROR_CURRENT,
+	ERROR_VOLTAGE,
+	ERROR_TEMPERATURE,
+	ERROR_COMMUNICATION,
+	ERROR_DEVICE,
+	ERROR_SOFTWARE,
+	ERROR_INTERNAL,
+	ERROR_USER,
+	ERROR_OTHER,
+} nmt_error_t;
+
+typedef enum {
+	NMT_CMD_START_REMOTE_NODE = 0x01,
+	NMT_CMD_STOP_REMOTE_NODE = 0x02,
+	NMT_CMD_ENTER_PRE_OPERATIONAL = 0x80,
+	NMT_CMD_RESET_NODE = 0x81,
+	NMT_CMD_RESET_COMMUNICATION = 0x82,
+} nmt_cmd_t;
+
+//Mode of operation
+typedef enum {
+	MODE_VELOCITY = 0x09,
+	MODE_TORQUE = 0x0A,
+	MODE_ALIGNMENT = -4
+} mode_t;
+
+//Make union of TPDO1 data
+typedef union {
+	uint8_t b[8];
+	struct {
+		uint16_t status_word;
+		int32_t actual_position;
+		int16_t actual_torque;
+	} data;
+} tpdo1_data_t;
+
+
+//Make union of TPDO2 data
+typedef union {
+	uint8_t b[8];
+	struct {
+		uint8_t controller_temperature;
+		uint8_t motor_temperature;
+		uint16_t dc_link_voltage;
+		int16_t logic_voltage;
+		uint16_t current_demand;
+	} data;
+} tpdo2_data_t;
+
+//Make union of TPDO3 data
+typedef union {
+	uint8_t b[8];
+	struct {
+		uint16_t motor_current_actual_value;
+		uint16_t electrical_angle;
+		uint16_t phase_a_current;
+		uint16_t phase_b_current;
+	} data;
+} tpdo3_data_t;
+
+//Make union of PDO1 data
+typedef union {
+	uint8_t b[8];
+	struct {
+		uint32_t control_word;
+		int32_t target_velocity;
+		int16_t target_torque;
+	} data;
+} pdo1_data_t;
+
+//Make union of PDO2 data
+typedef union {
+	uint8_t b[8];
+	struct {
+		uint32_t target_position;
+		uint8_t res_1;
+		uint8_t res_2;
+		uint8_t res_3;
+		uint8_t res_4;
+	} data;
+} pdo2_data_t;
+
+
 //Object of the driver
 typedef struct {
     uint16_t node_id;
     nmt_state_t state;
     uint16_t error_code;
     uint32_t time_stamp;
-    uint32_t target_velocity;
-    uint16_t target_torque;
+
     bool align;
-    uint8_t tpdo1_data[8];
-    uint8_t tpdo2_data[8];
-    uint8_t tpdo3_data[8];
-    uint8_t tpdo4_data[8];
+
+       //TPDO data
+    tpdo1_data_t tpdo1_data;
+    tpdo2_data_t tpdo2_data;
+    tpdo3_data_t tpdo3_data;
+
+    	//RPDO data
+    pdo1_data_t pdo1_data;
+    pdo2_data_t pdo2_data;
+
+
     int32_t prev_throttle; // Add previous throttle value
     int16_t prev_torque;   // Add previous torque value
     bool zero_message_sent; // Add flag for zero message sent
 } driver_t;
+
+
 
 
 void init_drivers(driver_t* driver);

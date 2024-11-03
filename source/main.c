@@ -42,10 +42,8 @@ int main(void)
 	BOARD_InitDebugConsole();
 
 	can_init(CAN_BAUDRATE);
-	init_leds();
 	init_buttons();
 	init_sensor();
-	uartInit();
 
 	//Init drivers
 	driver_1.node_id = NODE_ID_1;
@@ -53,15 +51,13 @@ int main(void)
 
 
 	init_drivers(&driver_1);
-	init_drivers(&driver_2);
+//	init_drivers(&driver_2);
 
     while (1) {
         update_state_machine(&driver_1);
         update_state_machine(&driver_2);
 
-        // Send motor data over UART
-        send_motor_data_uart(&driver_1);
-        send_motor_data_uart(&driver_2);
+
 
     	//PRINF SENSOR VALUES
 //    	run_sensors();

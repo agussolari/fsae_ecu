@@ -22,6 +22,7 @@
  ******************************************************************************/
 
 #define GPIO_CANT_PORTS		2
+#define GPIO_INT_EDGE_RISING    0
 
 
 // Convert port and number into pin ID
@@ -96,8 +97,7 @@ void gpioToggle (pin_t pin);
  */
 bool gpioRead (pin_t pin);
 
-void gpioBlink(pin_t pin);
-void init_leds(void);
+
 
 
 

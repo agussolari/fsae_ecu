@@ -32,7 +32,7 @@ void handle_errors(void);
  */
 void init_drivers(driver_t* driver)
 {
-	driver->state = STATE_POWER_ON_RESET;
+	driver->state = STATE_RESET_NODE;
 	driver->time_stamp = 0;
 
 	millis_init();
@@ -52,8 +52,8 @@ void update_state_machine(driver_t* driver)
     	case STATE_RESET_NODE:
     		// Enviar comando para RESET NODE
             send_nmt_command(0x81, driver->node_id);
+            PRINTF("Reset Node\n");
 
-        case STATE_POWER_ON_RESET:
             //Align in false
             driver->align = false;
 
@@ -63,18 +63,24 @@ void update_state_machine(driver_t* driver)
 //        	map_rpdo(driver->node_id);
 //        	map_tpdo(driver->node_id);
 
-            if (can_isNewRxMsg())
-            {
-                can_msg_t rx_msg;
-                if (can_readRxMsg(&rx_msg)
-                		&& (rx_msg.id == (0x700 + driver->node_id))
-						&& (rx_msg.data[0] == 0x7F) )
-                {
-                    PRINTF("Boot-up message received.\n");
-                    driver->state = STATE_INITIALIZATION;
-                }
+        	driver->state = STATE_POWER_ON_RESET;
+        	break;
 
+        case STATE_POWER_ON_RESET:
+
+
+            can_msg_t rx_msg;
+            if (can_readRxMsg(&rx_msg)
+              		&& (rx_msg.id == (0x700 + driver->node_id))
+					&& (rx_msg.data[0] == 0x00) )
+            {
+            	 PRINTF("Boot-up message received.\n");
+                 driver->state = STATE_INITIALIZATION;
             }
+		if (gpioRead(STOP_GPIO_PORT) == HIGH) {
+			driver->state = STATE_RESET_NODE;
+		}
+
             break;
 
         case STATE_INITIALIZATION:
@@ -230,7 +236,7 @@ void update_state_machine(driver_t* driver)
         case STATE_STOPPED:
             PRINTF("Stop Mode\n");
             send_nmt_command(0x80, driver->node_id);  // Volver a Pre-operational
-            driver->state = STATE_INITIALIZATION;
+            driver->state = STATE_PRE_OPERATIONAL;
             break;
     }
 }
@@ -259,7 +265,7 @@ bool check_alignment_status(driver_t* driver)
 	int32_t state;
 
     time_t current_time = millis();
-    if (current_time - last_time >= 2000)
+    if (current_time - last_time >= 3000)
     {
         last_time = current_time;
         send_sdo_read_command(0x6060, 0x00, driver->node_id);
@@ -293,6 +299,8 @@ void run_motors (driver_t* driver)
 	recive_pdo_message(driver);	//Receive PDO message
 
 	send_pdo_message(driver);		//Send PDO message
+
+
 }
 
 
@@ -316,7 +324,10 @@ void send_pdo_sync_message(driver_t* driver)
 		sync_msg.data[0] = 0x00;
 
 		if(can_isTxReady());
+		{
+			PRINTF("SYNC message sent\n");
 			can_sendTxMsg(&sync_msg);
+		}
 	}
 }
 
@@ -335,32 +346,26 @@ void recive_pdo_message(driver_t* driver)
 	if (can_isNewRxMsg()) {
 		can_readRxMsg(&rx_msg);
 
-		PRINTF("Received message ID: %03X\n", rx_msg.id);
+//		PRINTF("Received message ID: %03X\n", rx_msg.id);
 
 
 		if (rx_msg.id == (TPDO1_ID + driver->node_id ))
 		{
 			PRINTF("TPDO1 received\n");
 			for (int i = 0; i < 8; i++)
-				driver->tpdo1_data[i] = rx_msg.data[i];
+				driver->tpdo1_data.b[i] = rx_msg.data[i];
 		}
 		if ( rx_msg.id == (TPDO2_ID + driver->node_id ))
 		{
 			PRINTF("TPDO2 received\n");
 			for (int i = 0; i < 8; i++)
-				driver->tpdo2_data[i] = rx_msg.data[i];
+				driver->tpdo2_data.b[i] = rx_msg.data[i];
 		}
 		if ( rx_msg.id == (TPDO3_ID + driver->node_id ))
 		{
 			PRINTF("TPDO3 received\n");
 			for (int i = 0; i < 8; i++)
-				driver->tpdo3_data[i] = rx_msg.data[i];
-		}
-		if (rx_msg.id == (TPDO4_ID + driver->node_id ))
-		{
-			PRINTF("TPDO4 received\n");
-			for (int i = 0; i < 8; i++)
-				driver->tpdo4_data[i] = rx_msg.data[i];
+				driver->tpdo3_data.b[i] = rx_msg.data[i];
 		}
 	}
 }
@@ -376,37 +381,9 @@ void recive_pdo_message(driver_t* driver)
  * b[6], b[7]: Target torque
  *
  * @return void
- * uint32_t 0x00000000
+ *
  */
-//void send_pdo_message(driver_t* driver)
-//{
-//
-//	can_msg_t pdo_msg;
-//	pdo_msg.id = RPDO1_ID + driver->node_id;
-//	pdo_msg.rtr = 0;
-//	pdo_msg.len = 8;
-//
-//	pdo_msg.data[0] = 0x0F;
-//	pdo_msg.data[1] = driver->node_id;
-//
-//
-//	pdo_msg.data[2] = (uint8_t)(sensor_values.throttle & 0x000000FF) ;
-//	pdo_msg.data[3] = (uint8_t)((sensor_values.throttle >> 8) & 0x000000FF);
-//	pdo_msg.data[4] = (uint8_t)((sensor_values.throttle >> 16) & 0x000000FF);
-//	pdo_msg.data[5] = (uint8_t)((sensor_values.throttle >> 24) & 0x000000FF);
-//	driver->target_velocity = sensor_values.throttle;
-//
-//
-//	pdo_msg.data[6] = (uint8_t)(sensor_values.torque & 0x00FF);
-//	pdo_msg.data[7] = (uint8_t)((sensor_values.torque >> 8) & 0x00FF);
-//	driver->target_torque = sensor_values.torque;
-//
-//	if(can_isTxReady())
-//		can_sendTxMsg(&pdo_msg);
-//
-//}
 
-// Update the send_pdo_message function
 void send_pdo_message(driver_t* driver)
 {
     const int32_t throttle_threshold = 5; // Define a suitable threshold
@@ -430,11 +407,11 @@ void send_pdo_message(driver_t* driver)
             pdo_msg.data[3] = 0;
             pdo_msg.data[4] = 0;
             pdo_msg.data[5] = 0;
-            driver->target_velocity = 0;
+            driver->pdo1_data.data.target_velocity = 0;
 
             pdo_msg.data[6] = 0;
             pdo_msg.data[7] = 0;
-            driver->target_torque = 0;
+            driver->pdo1_data.data.target_torque = 0;
 
             if (can_isTxReady())
                 can_sendTxMsg(&pdo_msg);
@@ -454,16 +431,17 @@ void send_pdo_message(driver_t* driver)
 
             pdo_msg.data[0] = 0x0F;
             pdo_msg.data[1] = driver->node_id;
+            driver->pdo1_data.data.control_word = 0x0F | driver->node_id << 8;
 
             pdo_msg.data[2] = (uint8_t)(current_throttle & 0x000000FF);
             pdo_msg.data[3] = (uint8_t)((current_throttle >> 8) & 0x000000FF);
             pdo_msg.data[4] = (uint8_t)((current_throttle >> 16) & 0x000000FF);
             pdo_msg.data[5] = (uint8_t)((current_throttle >> 24) & 0x000000FF);
-            driver->target_velocity = current_throttle;
+            driver->pdo1_data.data.target_velocity = current_throttle;
 
             pdo_msg.data[6] = (uint8_t)(current_torque & 0x00FF);
             pdo_msg.data[7] = (uint8_t)((current_torque >> 8) & 0x00FF);
-            driver->target_torque = current_torque;
+            driver->pdo1_data.data.target_torque = current_torque;
 
             if (can_isTxReady())
                 can_sendTxMsg(&pdo_msg);
@@ -487,16 +465,6 @@ void send_pdo_message(driver_t* driver)
  * Command = 0x2B for 2 bytes of write
  *
  */
-
-//bool send_controlword(uint8_t controlword, uint16_t node_id)
-//{
-//    //Send SDO Write command
-//	send_sdo_write_command(0x2B, 0x6040, 0x00, (int32_t)(controlword), node_id); //data = 0x control_word + node_id
-//
-//	//Wait for controller response
-//	return recive_sdo_write_command(0x60, 0x6040, 0x00, 0x00000000, node_id);
-//
-//}
 
 bool send_controlword(uint8_t controlword, uint16_t node_id) {
     can_msg_t control_msg;
@@ -674,112 +642,112 @@ void map_tpdo(uint16_t node_id)
 
 
 
-void send_motor_data_uart(driver_t* driver) {
-    const char* motor_state;
-    const char* operation_mode;
-    int target_velocity = driver->target_velocity; // Reemplazar con el valor real
-
-    //tpdo[1] = b[2], b[3], b[4], b[5]
-    int actual_velocity = driver->tpdo1_data[2] | driver->tpdo1_data[3] << 8 | driver->tpdo1_data[4] << 16 | driver->tpdo1_data[5] << 24;
-    float current = driver->tpdo2_data[6] | driver->tpdo2_data[7] << 8; // Reemplazar con el valor real
-    float actual_torque = driver->tpdo1_data[6] | driver->tpdo1_data[7] << 8; // Reemplazar con el valor real
-    float desired_torque = (float)(driver->target_torque); // Reemplazar con el valor real
-    float temperature = driver->tpdo2_data[5]; // Reemplazar con el valor real
-    int error_indicator = 0; // Reemplazar con el valor real
-
-    // Determinar el estado del motor
-    switch (driver->state) {
-        case STATE_PRE_OPERATIONAL:
-            motor_state = "Pre-operacional";
-            break;
-        case STATE_OPERATIONAL:
-            motor_state = "Operacional";
-            break;
-        case STATE_DRIVE:
-            motor_state = "Drive";
-            break;
-        case STATE_STOPPED:
-            motor_state = "Stop";
-            break;
-        default:
-            motor_state = "Unknown";
-            break;
-    }
-
-    // Determinar el modo de operación
-//    switch (driver->mode) {
-//        case MODE_VELOCITY:
-//            operation_mode = "Velocidad";
+//void send_motor_data_uart(driver_t* driver) {
+//    const char* motor_state;
+//    const char* operation_mode;
+//    int target_velocity = driver->target_velocity; // Reemplazar con el valor real
+//
+//    //tpdo[1] = b[2], b[3], b[4], b[5]
+//    int actual_velocity = driver->tpdo1_data[2] | driver->tpdo1_data[3] << 8 | driver->tpdo1_data[4] << 16 | driver->tpdo1_data[5] << 24;
+//    float current = driver->tpdo2_data[6] | driver->tpdo2_data[7] << 8; // Reemplazar con el valor real
+//    float actual_torque = driver->tpdo1_data[6] | driver->tpdo1_data[7] << 8; // Reemplazar con el valor real
+//    float desired_torque = (float)(driver->target_torque); // Reemplazar con el valor real
+//    float temperature = driver->tpdo2_data[5]; // Reemplazar con el valor real
+//    int error_indicator = 0; // Reemplazar con el valor real
+//
+//    // Determinar el estado del motor
+//    switch (driver->state) {
+//        case STATE_PRE_OPERATIONAL:
+//            motor_state = "Pre-operacional";
 //            break;
-//        case MODE_TORQUE:
-//            operation_mode = "Torque";
+//        case STATE_OPERATIONAL:
+//            motor_state = "Operacional";
 //            break;
-//        case MODE_ALIGNMENT:
-//            operation_mode = "Alineación";
+//        case STATE_DRIVE:
+//            motor_state = "Drive";
+//            break;
+//        case STATE_STOPPED:
+//            motor_state = "Stop";
 //            break;
 //        default:
-//            operation_mode = "Unknown";
+//            motor_state = "Unknown";
 //            break;
 //    }
-
-    // Formatear los datos manualmente
-    char buffer[256] = {0};
-    char temp[50];
-
-    // Concatenar node_id
-    itoa(driver->node_id, temp, 10);
-    strcat(buffer, temp);
-    strcat(buffer, ",");
-
-    // Concatenar motor_state
-    strcat(buffer, motor_state);
-    strcat(buffer, ",");
-
-    // Concatenar operation_mode
-    strcat(buffer, operation_mode);
-    strcat(buffer, ",");
-
-    // Concatenar target_velocity
-    itoa(target_velocity, temp, 10);
-    strcat(buffer, temp);
-    strcat(buffer, ",");
-
-    // Concatenar actual_velocity
-    itoa(actual_velocity, temp, 10);
-    strcat(buffer, temp);
-    strcat(buffer, ",");
-
-    // Concatenar current
-    snprintf(temp, sizeof(temp), "%.2f", current);
-    strcat(buffer, temp);
-    strcat(buffer, ",");
-
-    // Concatenar actual_torque
-    snprintf(temp, sizeof(temp), "%.2f", actual_torque);
-    strcat(buffer, temp);
-    strcat(buffer, ",");
-
-    // Concatenar desired_torque
-    snprintf(temp, sizeof(temp), "%.2f", desired_torque);
-    strcat(buffer, temp);
-    strcat(buffer, ",");
-
-    // Concatenar temperature
-    snprintf(temp, sizeof(temp), "%.2f", temperature);
-    strcat(buffer, temp);
-    strcat(buffer, ",");
-
-    // Concatenar error_indicator
-    itoa(error_indicator, temp, 10);
-    strcat(buffer, temp);
-
-    strcat(buffer, "\n");
-
-    // Enviar los datos por UART
-    uartWriteStr(buffer);
-
-
-}
+//
+//    // Determinar el modo de operación
+////    switch (driver->mode) {
+////        case MODE_VELOCITY:
+////            operation_mode = "Velocidad";
+////            break;
+////        case MODE_TORQUE:
+////            operation_mode = "Torque";
+////            break;
+////        case MODE_ALIGNMENT:
+////            operation_mode = "Alineación";
+////            break;
+////        default:
+////            operation_mode = "Unknown";
+////            break;
+////    }
+//
+//    // Formatear los datos manualmente
+//    char buffer[256] = {0};
+//    char temp[50];
+//
+//    // Concatenar node_id
+//    itoa(driver->node_id, temp, 10);
+//    strcat(buffer, temp);
+//    strcat(buffer, ",");
+//
+//    // Concatenar motor_state
+//    strcat(buffer, motor_state);
+//    strcat(buffer, ",");
+//
+//    // Concatenar operation_mode
+//    strcat(buffer, operation_mode);
+//    strcat(buffer, ",");
+//
+//    // Concatenar target_velocity
+//    itoa(target_velocity, temp, 10);
+//    strcat(buffer, temp);
+//    strcat(buffer, ",");
+//
+//    // Concatenar actual_velocity
+//    itoa(actual_velocity, temp, 10);
+//    strcat(buffer, temp);
+//    strcat(buffer, ",");
+//
+//    // Concatenar current
+//    snprintf(temp, sizeof(temp), "%.2f", current);
+//    strcat(buffer, temp);
+//    strcat(buffer, ",");
+//
+//    // Concatenar actual_torque
+//    snprintf(temp, sizeof(temp), "%.2f", actual_torque);
+//    strcat(buffer, temp);
+//    strcat(buffer, ",");
+//
+//    // Concatenar desired_torque
+//    snprintf(temp, sizeof(temp), "%.2f", desired_torque);
+//    strcat(buffer, temp);
+//    strcat(buffer, ",");
+//
+//    // Concatenar temperature
+//    snprintf(temp, sizeof(temp), "%.2f", temperature);
+//    strcat(buffer, temp);
+//    strcat(buffer, ",");
+//
+//    // Concatenar error_indicator
+//    itoa(error_indicator, temp, 10);
+//    strcat(buffer, temp);
+//
+//    strcat(buffer, "\n");
+//
+//    // Enviar los datos por UART
+//    uartWriteStr(buffer);
+//
+//
+//}
 
 
 
