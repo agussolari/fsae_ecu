@@ -9,9 +9,12 @@
  ******************************************************************************/
 
 #include "gpio.h"
-
+#include <stdint.h>
+#include <stdbool.h>
+#include "drivers.h"
 #include "fsl_common.h"
 #include "fsl_gpio.h"
+
 
 
 /*******************************************************************************
@@ -29,7 +32,6 @@ typedef union {
 		uint8_t port;
 	};
 } portNum_t;
-
 
 
 /*******************************************************************************
@@ -69,6 +71,10 @@ static const uint32_t pio_config[GPIO_CANT_MODES] =
 
 static bool cg_iocon;
 
+debounce_t pre_op_button = {0, false, false};
+debounce_t op_button = {0, false, false};
+debounce_t drive_button = {0, false, false};
+debounce_t stop_button = {0, false, false};
 
 /*******************************************************************************
  *******************************************************************************
@@ -124,7 +130,22 @@ bool gpioRead (pin_t pin)
 }
 
 
+bool read_button(uint8_t port)
+{
+    return gpioRead(port) == HIGH;
+}
 
+void debounce_button(debounce_t* button, uint8_t port)
+{
+    bool current_state = read_button(port);
+    if (current_state != button->last_button_state) {
+        button->last_debounce_time = millis();
+    }
+    if ((millis() - button->last_debounce_time) > DEBOUNCE_DELAY_MS) {
+        button->button_state = current_state;
+    }
+    button->last_button_state = current_state;
+}
 
 
 /*******************************************************************************
