@@ -53,9 +53,11 @@ int main(void)
 	init_drivers(&driver_1);
 //	init_drivers(&driver_2);
 
+
     while (1) {
+
         update_state_machine(&driver_1);
-        update_state_machine(&driver_2);
+//        update_state_machine(&driver_2);
 
 
 

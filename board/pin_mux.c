@@ -171,6 +171,22 @@ void BOARD_InitPins(void)
                                         IOCON_PIO_OPENDRAIN_DI);
     /* PORT1 PIN3 (coords: 42) is configured as CAN0_RD */
     IOCON_PinMuxSet(IOCON, 1U, 3U, port1_pin3_config);
+
+    //port0_25 FOR pwm
+	const uint32_t port0_pin25_config = (/* Pin is configured as FC0_RXD_SDA_MOSI_DATA */
+	IOCON_PIO_FUNC1 |
+	/* No addition pin function */
+	IOCON_PIO_MODE_INACT |
+	/* Standard mode, output slew rate control is enabled */
+	IOCON_PIO_SLEW_STANDARD |
+	/* Input function is not inverted */
+	IOCON_PIO_INV_DI |
+	/* Enables digital function */
+	IOCON_PIO_DIGITAL_EN |
+	/* Open drain is disabled */
+	IOCON_PIO_OPENDRAIN_DI);
+	/* PORT0 PIN25 (coords: 61) is configured as FC0_RXD_SDA_MOSI_DATA */
+	IOCON_PinMuxSet(IOCON, 0U, 25U, IOCON_FUNC2);
 }
 /***********************************************************************************************************************
  * EOF

@@ -247,7 +247,7 @@
 							<tool id="com.crt.advproject.link.exe.debug.469123392" name="MCU Linker" superClass="com.crt.advproject.link.exe.debug">
 								<option id="com.crt.advproject.link.thumb.1202021282" name="Thumb mode" superClass="com.crt.advproject.link.thumb" value="true" valueType="boolean"/>
 								<option id="com.crt.advproject.link.memory.load.image.666051747" name="Plain load image" superClass="com.crt.advproject.link.memory.load.image" value="" valueType="string"/>
-								<option defaultValue="com.crt.advproject.heapAndStack.mcuXpressoStyle" id="com.crt.advproject.link.memory.heapAndStack.style.1767127075" name="Heap and Stack placement" superClass="com.crt.advproject.link.memory.heapAndStack.style" valueType="enumerated"/>
+								<option defaultValue="com.crt.advproject.heapAndStack.mcuXpressoStyle" id="com.crt.advproject.link.memory.heapAndStack.style.1767127075" name="Heap and Stack placement" superClass="com.crt.advproject.link.memory.heapAndStack.style" value="Default" valueType="enumerated"/>
 								<option id="com.crt.advproject.link.memory.heapAndStack.217621477" name="Heap and Stack options" superClass="com.crt.advproject.link.memory.heapAndStack" value="&amp;Heap:Default;Post Data;Default&amp;Stack:Default;End;Default" valueType="string"/>
 								<option id="com.crt.advproject.link.memory.data.81090331" name="Global data placement" superClass="com.crt.advproject.link.memory.data" value="" valueType="string"/>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="true" id="com.crt.advproject.link.memory.sections.893225844" name="Extra linker script input sections" superClass="com.crt.advproject.link.memory.sections" valueType="stringList"/>
@@ -574,7 +574,7 @@
 							<tool id="com.crt.advproject.link.exe.release.980627497" name="MCU Linker" superClass="com.crt.advproject.link.exe.release">
 								<option id="com.crt.advproject.link.thumb.1275579018" name="Thumb mode" superClass="com.crt.advproject.link.thumb" value="true" valueType="boolean"/>
 								<option id="com.crt.advproject.link.memory.load.image.538101204" name="Plain load image" superClass="com.crt.advproject.link.memory.load.image" value="" valueType="string"/>
-								<option defaultValue="com.crt.advproject.heapAndStack.mcuXpressoStyle" id="com.crt.advproject.link.memory.heapAndStack.style.421355522" name="Heap and Stack placement" superClass="com.crt.advproject.link.memory.heapAndStack.style" valueType="enumerated"/>
+								<option defaultValue="com.crt.advproject.heapAndStack.mcuXpressoStyle" id="com.crt.advproject.link.memory.heapAndStack.style.421355522" name="Heap and Stack placement" superClass="com.crt.advproject.link.memory.heapAndStack.style" value="Default" valueType="enumerated"/>
 								<option id="com.crt.advproject.link.memory.heapAndStack.1750524263" name="Heap and Stack options" superClass="com.crt.advproject.link.memory.heapAndStack" value="&amp;Heap:Default;Post Data;Default&amp;Stack:Default;End;Default" valueType="string"/>
 								<option id="com.crt.advproject.link.memory.data.1488323548" name="Global data placement" superClass="com.crt.advproject.link.memory.data" value="" valueType="string"/>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="true" id="com.crt.advproject.link.memory.sections.1063144382" name="Extra linker script input sections" superClass="com.crt.advproject.link.memory.sections" valueType="stringList"/>
