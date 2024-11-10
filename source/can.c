@@ -185,33 +185,33 @@ bool can_isNewRxMsg(void)
 }
 
 
-//bool can_readRxMsg(can_msg_t* msg)
-//{
-//	// leo un RX buffer de la RX FIFO 0
-//	mcan_rx_buffer_frame_t rxBuffer = {.size = CAN_DATASIZE, .data = msg->data};
-//	if (myMCAN_ReadRxFifo(CAN0, 0, &rxBuffer) != kStatus_Success)
-//		return false;
-//
-//	// guardo info del Rx buffer en msg
-//	msg->id = rxBuffer.id >> STDID_OFFSET; // se guarda left-justified en 29bits o 11bits
-//	msg->len = rxBuffer.dlc;
-//	// no hace falta, ya se copia en MCAN_ReadRxFifo() porque inicialicé rxBuffer.data = msg->data     memcpy(msg->data, rxBuffer.data, msg->len);
-//
-//	return true;
-//}
-
 bool can_readRxMsg(can_msg_t* msg)
 {
-    mcan_rx_buffer_frame_t rxBuffer = {.size = CAN_DATASIZE, .data = msg->data};
-    if (myMCAN_ReadRxFifo(CAN0, 0, &rxBuffer) != kStatus_Success)
-        return false;
+	// leo un RX buffer de la RX FIFO 0
+	mcan_rx_buffer_frame_t rxBuffer = {.size = CAN_DATASIZE, .data = msg->data};
+	if (myMCAN_ReadRxFifo(CAN0, 0, &rxBuffer) != kStatus_Success)
+		return false;
 
-    msg->id = rxBuffer.id >> STDID_OFFSET; // se guarda left-justified en 29bits o 11bits
-    msg->len = rxBuffer.dlc;
-    msg->rtr = (rxBuffer.rtr == kMCAN_FrameTypeData) ? 0 : 1;
+	// guardo info del Rx buffer en msg
+	msg->id = rxBuffer.id >> STDID_OFFSET; // se guarda left-justified en 29bits o 11bits
+	msg->len = rxBuffer.dlc;
+	// no hace falta, ya se copia en MCAN_ReadRxFifo() porque inicialicé rxBuffer.data = msg->data     memcpy(msg->data, rxBuffer.data, msg->len);
 
-    return true;
+	return true;
 }
+
+//bool can_readRxMsg(can_msg_t* msg)
+//{
+//    mcan_rx_buffer_frame_t rxBuffer = {.size = CAN_DATASIZE, .data = msg->data};
+//    if (myMCAN_ReadRxFifo(CAN0, 0, &rxBuffer) != kStatus_Success)
+//        return false;
+//
+//    msg->id = rxBuffer.id >> STDID_OFFSET; // se guarda left-justified en 29bits o 11bits
+//    msg->len = rxBuffer.dlc;
+//    msg->rtr = (rxBuffer.rtr == kMCAN_FrameTypeData) ? 0 : 1;
+//
+//    return true;
+//}
 /******************* TX *******************/
 
 bool can_isTxReady(void)
@@ -220,47 +220,47 @@ bool can_isTxReady(void)
 }
 
 
-//bool can_sendTxMsg(const can_msg_t* msg)
-//{
-//	// 1) ver que la TX FIFO no esté llena
-//	if (CAN0->TXFQS & CAN_TXFQS_TFQF_MASK)
-//		return false; // TX FIFO está FULL
-//
-//	// 2) obtener el TX FIFO put index
-//	uint8_t idx = (CAN0->TXFQS & CAN_TXFQS_TFQPI_MASK) >> CAN_TXFQS_TFQPI_SHIFT;
-//
-//	// 3) escribir la info en dicho TX FIFO buffer
-//	mcan_tx_buffer_frame_t txBuffer = {.xtd=kMCAN_FrameIDStandard, .rtr=kMCAN_FrameTypeData, .fdf=false, .brs=false, .efc=false, .size=8};
-//	txBuffer.id = msg->id << STDID_OFFSET;
-//	txBuffer.dlc = msg->len;
-//	txBuffer.data = (uint8_t*) (msg->data);
-//	if (MCAN_WriteTxBuffer(CAN0, idx, &txBuffer) != kStatus_Success)
-//		return false; // falló la escritura
-//
-//	// 4) Escribir un AddRequest de ese buffer
-//	CAN0->TXBAR = (1<<idx);
-//
-//    return true;
-//}
-//
 bool can_sendTxMsg(const can_msg_t* msg)
 {
-    if (CAN0->TXFQS & CAN_TXFQS_TFQF_MASK)
-        return false; // TX FIFO está FULL
+	// 1) ver que la TX FIFO no esté llena
+	if (CAN0->TXFQS & CAN_TXFQS_TFQF_MASK)
+		return false; // TX FIFO está FULL
 
-    uint8_t idx = (CAN0->TXFQS & CAN_TXFQS_TFQPI_MASK) >> CAN_TXFQS_TFQPI_SHIFT;
+	// 2) obtener el TX FIFO put index
+	uint8_t idx = (CAN0->TXFQS & CAN_TXFQS_TFQPI_MASK) >> CAN_TXFQS_TFQPI_SHIFT;
 
-    mcan_tx_buffer_frame_t txBuffer = {.xtd=kMCAN_FrameIDStandard, .rtr=kMCAN_FrameTypeData, .fdf=false, .brs=false, .efc=false, .size=8};
-    txBuffer.id = msg->id << STDID_OFFSET;
-    txBuffer.dlc = msg->len;
-    txBuffer.data = (uint8_t*) (msg->data);
-    if (MCAN_WriteTxBuffer(CAN0, idx, &txBuffer) != kStatus_Success)
-        return false; // falló la escritura
+	// 3) escribir la info en dicho TX FIFO buffer
+	mcan_tx_buffer_frame_t txBuffer = {.xtd=kMCAN_FrameIDStandard, .rtr=kMCAN_FrameTypeData, .fdf=false, .brs=false, .efc=false, .size=8};
+	txBuffer.id = msg->id << STDID_OFFSET;
+	txBuffer.dlc = msg->len;
+	txBuffer.data = (uint8_t*) (msg->data);
+	if (MCAN_WriteTxBuffer(CAN0, idx, &txBuffer) != kStatus_Success)
+		return false; // falló la escritura
 
-    CAN0->TXBAR = (1<<idx);
+	// 4) Escribir un AddRequest de ese buffer
+	CAN0->TXBAR = (1<<idx);
 
     return true;
 }
+
+//bool can_sendTxMsg(const can_msg_t* msg)
+//{
+//    if (CAN0->TXFQS & CAN_TXFQS_TFQF_MASK)
+//        return false; // TX FIFO está FULL
+//
+//    uint8_t idx = (CAN0->TXFQS & CAN_TXFQS_TFQPI_MASK) >> CAN_TXFQS_TFQPI_SHIFT;
+//
+//    mcan_tx_buffer_frame_t txBuffer = {.xtd=kMCAN_FrameIDStandard, .rtr=kMCAN_FrameTypeData, .fdf=false, .brs=false, .efc=false, .size=8};
+//    txBuffer.id = msg->id << STDID_OFFSET;
+//    txBuffer.dlc = msg->len;
+//    txBuffer.data = (uint8_t*) (msg->data);
+//    if (MCAN_WriteTxBuffer(CAN0, idx, &txBuffer) != kStatus_Success)
+//        return false; // falló la escritura
+//
+//    CAN0->TXBAR = (1<<idx);
+//
+//    return true;
+//}
 
 
 /*******************************************************************************

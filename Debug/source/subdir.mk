@@ -10,7 +10,6 @@ C_SRCS += \
 ../source/can_open.c \
 ../source/drivers.c \
 ../source/gpio.c \
-../source/led.c \
 ../source/main.c \
 ../source/millis.c \
 ../source/sensors.c \
@@ -23,7 +22,6 @@ C_DEPS += \
 ./source/can_open.d \
 ./source/drivers.d \
 ./source/gpio.d \
-./source/led.d \
 ./source/main.d \
 ./source/millis.d \
 ./source/sensors.d \
@@ -36,7 +34,6 @@ OBJS += \
 ./source/can_open.o \
 ./source/drivers.o \
 ./source/gpio.o \
-./source/led.o \
 ./source/main.o \
 ./source/millis.o \
 ./source/sensors.o \
@@ -55,7 +52,7 @@ source/%.o: ../source/%.c source/subdir.mk
 clean: clean-source
 
 clean-source:
-	-$(RM) ./source/SysTick.d ./source/SysTick.o ./source/adc.d ./source/adc.o ./source/can.d ./source/can.o ./source/can_open.d ./source/can_open.o ./source/drivers.d ./source/drivers.o ./source/gpio.d ./source/gpio.o ./source/led.d ./source/led.o ./source/main.d ./source/main.o ./source/millis.d ./source/millis.o ./source/sensors.d ./source/sensors.o ./source/uart.d ./source/uart.o
+	-$(RM) ./source/SysTick.d ./source/SysTick.o ./source/adc.d ./source/adc.o ./source/can.d ./source/can.o ./source/can_open.d ./source/can_open.o ./source/drivers.d ./source/drivers.o ./source/gpio.d ./source/gpio.o ./source/main.d ./source/main.o ./source/millis.d ./source/millis.o ./source/sensors.d ./source/sensors.o ./source/uart.d ./source/uart.o
 
 .PHONY: clean-source
 

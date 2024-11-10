@@ -31,10 +31,21 @@
 #define TPDO3_ID 				(0x380)
 #define TPDO4_ID 				(0x480)
 
-#define PRE_OP_GPIO_PORT 		PORTNUM2PIN(1, 21)
-#define OP_GPIO_PORT 			PORTNUM2PIN(0, 28)
+#define START_GPIO_PORT 		PORTNUM2PIN(0, 28)
 #define DRIVE_GPIO_PORT 		PORTNUM2PIN(0, 27)
 #define STOP_GPIO_PORT 			PORTNUM2PIN(0, 14)
+
+//#define LED_1_PORT 				PORTNUM2PIN(1, 29)
+//#define LED_2_PORT 				PORTNUM2PIN(0, 20)
+//#define LED_3_PORT 				PORTNUM2PIN(0, 21)
+//#define LED_4_PORT 				PORTNUM2PIN(1, 25)
+//#define LED_5_PORT 				PORTNUM2PIN(0, 3)
+
+#define LED_1_PORT 				PORTNUM2PIN(1, 9)
+#define LED_2_PORT 				PORTNUM2PIN(1, 10)
+#define LED_3_PORT 				PORTNUM2PIN(1, 11)
+#define LED_4_PORT 				PORTNUM2PIN(0, 13)
+#define LED_5_PORT 				PORTNUM2PIN(0, 14)
 
 #define SAVE_PARAM 				(uint32_t)(0x65766173)
 
@@ -47,13 +58,19 @@ typedef enum {
 	STATE_ALIGN_MOTORS,
 	STATE_WAIT_ALIGN_MOTORS,
 	STATE_ALIGNING_MOTORS,
-	STATE_WAIT_PRE_OPERATIONAL,
-    STATE_PRE_OPERATIONAL,
-	STATE_WAIT_OPERATIONAL,
-    STATE_OPERATIONAL,
+	STATE_WAIT_START,
+    STATE_START,
 	STATE_WAIT_DRIVE,
-	STATE_DRIVE,
+    STATE_DRIVE,
     STATE_STOPPED,
+} driver_state_t;
+
+typedef enum {
+	NMT_STATE_BOOTUP,
+	NMT_STATE_PRE_OPERATIONAL,
+	NMT_STATE_OPERATIONAL,
+	NMT_STATE_DRIVE,
+	NMT_STATE_STOPPED,
 } nmt_state_t;
 
 typedef enum {
@@ -145,7 +162,8 @@ typedef union {
 //Object of the driver
 typedef struct {
     uint16_t node_id;
-    nmt_state_t state;
+    driver_state_t state;
+    nmt_state_t nmt_state;
     uint16_t error_code;
     uint32_t time_stamp;
 
@@ -172,6 +190,7 @@ typedef struct {
 void init_drivers(driver_t* driver);
 void update_state_machine(driver_t* driver);
 void send_motor_data_uart(driver_t* driver);
+void update_driver_leds(driver_t *driver);
 
 
 #endif /* DRIVERS_H_ */

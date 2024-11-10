@@ -59,15 +59,20 @@ int main(void)
         update_state_machine(&driver_1);
 //        update_state_machine(&driver_2);
 
-
+//    	update_driver_leds(&driver_1);
 
     	//PRINF SENSOR VALUES
 //    	run_sensors();
 //    	PRINTF("%d %d %d %d \n", sensor_values.throttle, sensor_values.brake, sensor_values.torque, sensor_values.direction);
 
+//        debounce_button(&start_button, START_GPIO_PORT);
+//        debounce_button(&drive_button, DRIVE_GPIO_PORT);
+//        debounce_button(&stop_button, STOP_GPIO_PORT);
     	//PRINTF BUTTONS VALUES
-//    	PRINTF("%d %d %d %d \n", gpioRead(PRE_OP_GPIO_PORT), gpioRead(OP_GPIO_PORT), gpioRead(DRIVE_GPIO_PORT), gpioRead(STOP_GPIO_PORT));
+//        PRINTF("%d %d %d \n", start_button.last_button_state, drive_button.button_state, stop_button.button_state);
 
+//    	PRINTF LEDS VALUES
+//    	PRINTF("%d %d %d %d %d \n", gpioRead(LED_1_PORT), gpioRead(LED_2_PORT), gpioRead(LED_3_PORT), gpioRead(LED_4_PORT), gpioRead(LED_5_PORT));
     }
 }
 

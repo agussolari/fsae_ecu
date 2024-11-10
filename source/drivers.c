@@ -46,8 +46,7 @@ void init_drivers(driver_t* driver)
  * @return void
  */
 void update_state_machine(driver_t* driver) {
-    debounce_button(&pre_op_button, PRE_OP_GPIO_PORT);
-    debounce_button(&op_button, OP_GPIO_PORT);
+    debounce_button(&start_button, START_GPIO_PORT);
     debounce_button(&drive_button, DRIVE_GPIO_PORT);
     debounce_button(&stop_button, STOP_GPIO_PORT);
 
@@ -55,6 +54,7 @@ void update_state_machine(driver_t* driver) {
         case STATE_RESET_NODE:
             send_nmt_command(0x81, driver->node_id);
             PRINTF("Reset Node\n");
+
             driver->align = false;
             driver->state = STATE_POWER_ON_RESET;
             break;
@@ -63,10 +63,14 @@ void update_state_machine(driver_t* driver) {
             can_msg_t rx_msg;
             if (can_readRxMsg(&rx_msg) && (rx_msg.id == (0x700 + driver->node_id)) && (rx_msg.data[0] == 0x00)) {
                 PRINTF("Boot-up message received.\n");
+                driver->nmt_state = NMT_STATE_BOOTUP;
                 driver->state = STATE_INITIALIZATION;
+                break;
             }
-            if (stop_button.button_state) {
+            if (stop_button.last_button_state) {
                 driver->state = STATE_RESET_NODE;
+                break;
+
             }
             break;
 
@@ -74,86 +78,107 @@ void update_state_machine(driver_t* driver) {
             if (send_sdo_write_command(0x40, 0x1810, 0x01, 0x00000000, driver->state)) {
                 PRINTF("Init SDO command sent\n");
             }
-            driver->state = STATE_WAIT_PRE_OPERATIONAL;
+            driver->state = STATE_WAIT_START;
             PRINTF("Initialization Mode\n");
+
+            map_rpdo(driver->node_id);
+            map_tpdo(driver->node_id);
+
             break;
 
-        case STATE_WAIT_PRE_OPERATIONAL:
-            if (pre_op_button.button_state) {
-                driver->state = STATE_PRE_OPERATIONAL;
-                PRINTF("Pre-Operational Mode\n");
+        case STATE_WAIT_START:
+            if (start_button.last_button_state)
+            {
+            	PRINTF("Start Mode\n");
+                driver->state = STATE_START;
+                break;
+
+//                PRINTF("Start Mode\n");
             }
+//            PRINTF("TEST\n");
             break;
 
-        case STATE_PRE_OPERATIONAL:
+        case STATE_START:
             send_nmt_command(0x80, driver->node_id);
+            driver->nmt_state = NMT_STATE_PRE_OPERATIONAL;
             PRINTF("Pre-Operational Mode\n");
-            driver->state = STATE_ALIGN_MOTORS;
-            break;
 
-        case STATE_ALIGN_MOTORS:
-            if (driver->align) {
-                driver->state = STATE_WAIT_OPERATIONAL;
-            } else {
+
+
+            if (driver->align)
+            {
+            	 send_sdo_mode_of_operation(0x09, driver->node_id);
+            	 PRINTF("Mode of operation set to Velocity\n");
+
+				PRINTF("Operational Mode\n");
+				send_nmt_command(0x01, driver->node_id);
+				driver->nmt_state = NMT_STATE_OPERATIONAL;
+                driver->state = STATE_WAIT_DRIVE;
+                break;
+            }
+            else
+            {
                 align_motors(driver->node_id);
                 PRINTF("Aligning motors\n");
-                driver->state = STATE_WAIT_ALIGN_MOTORS;
-            }
-            break;
-
-        case STATE_WAIT_ALIGN_MOTORS:
-            if (op_button.button_state) {
                 send_nmt_command(0x01, driver->node_id);
                 PRINTF("Operational Mode for align\n");
+                driver->nmt_state = NMT_STATE_OPERATIONAL;
+
                 driver->state = STATE_ALIGNING_MOTORS;
-            }
-            if (pre_op_button.button_state) {
-                driver->state = STATE_PRE_OPERATIONAL;
+                break;
+
             }
             break;
+
 
         case STATE_ALIGNING_MOTORS:
-            if (check_alignment_status(driver)) {
+            if (check_alignment_status(driver))
+            {
                 PRINTF("Alignment Complete\n");
                 driver->align = true;
+
                 send_nmt_command(0x80, driver->node_id);
+                driver->nmt_state = NMT_STATE_PRE_OPERATIONAL;
                 PRINTF("Pre-Operational Mode\n");
+
                 send_sdo_mode_of_operation(0x09, driver->node_id);
                 PRINTF("Mode of operation set to Velocity\n");
+
                 PRINTF("Operational Mode\n");
-                driver->state = STATE_OPERATIONAL;
-            } else if (pre_op_button.button_state) {
-                driver->state = STATE_PRE_OPERATIONAL;
-            } else if (stop_button.button_state) {
+                send_nmt_command(0x01, driver->node_id);
+                driver->nmt_state = NMT_STATE_OPERATIONAL;
+
+                driver->state = STATE_WAIT_DRIVE;
+            }
+            else if (start_button.last_button_state)
+            {
+                driver->state = STATE_WAIT_START;
+                break;
+            }
+            else if (stop_button.last_button_state)
+            {
                 driver->state = STATE_STOPPED;
+                break;
+
             }
             break;
 
-        case STATE_WAIT_OPERATIONAL:
-            if (op_button.button_state) {
-                driver->state = STATE_OPERATIONAL;
-                PRINTF("Operational Mode\n");
-            }
-            break;
 
-        case STATE_OPERATIONAL:
-            send_nmt_command(0x01, driver->node_id);
-            driver->state = STATE_WAIT_DRIVE;
-            break;
 
         case STATE_WAIT_DRIVE:
-            if (drive_button.button_state) {
+            if (drive_button.last_button_state) {
                 PRINTF("Drive Mode\n");
                 send_controlword(0x06, driver->node_id);
                 send_controlword(0x07, driver->node_id);
                 send_controlword(0x0F, driver->node_id);
                 driver->state = STATE_DRIVE;
+                driver->nmt_state = NMT_STATE_DRIVE;
             }
-            if (pre_op_button.button_state) {
-                driver->state = STATE_PRE_OPERATIONAL;
+            if (start_button.last_button_state) {
+                driver->state = STATE_WAIT_START;
             }
-            if (op_button.button_state) {
-                driver->state = STATE_OPERATIONAL;
+            if (stop_button.last_button_state) {
+                driver->state = STATE_STOPPED;
             }
             break;
 
@@ -161,21 +186,18 @@ void update_state_machine(driver_t* driver) {
             run_sensors();
             run_motors(driver);
             handle_errors();
-            if (stop_button.button_state) {
+
+            if (stop_button.last_button_state) {
                 driver->state = STATE_STOPPED;
             }
-            if (pre_op_button.button_state) {
-                driver->state = STATE_PRE_OPERATIONAL;
-            }
-            if (op_button.button_state) {
-                driver->state = STATE_OPERATIONAL;
-            }
+
             break;
 
         case STATE_STOPPED:
             PRINTF("Stop Mode\n");
             send_nmt_command(0x80, driver->node_id);
-            driver->state = STATE_PRE_OPERATIONAL;
+            driver->nmt_state = NMT_STATE_STOPPED;
+            driver->state = STATE_WAIT_START;
             break;
     }
 }
@@ -209,6 +231,7 @@ bool check_alignment_status(driver_t* driver)
     {
         last_time = current_time;
         send_sdo_read_command(0x6060, 0x00, driver->node_id);
+
     }
 
 
@@ -216,7 +239,8 @@ bool check_alignment_status(driver_t* driver)
 	//Wait for controller response
 	state = recive_sdo_read_command(0x43, 0x6060, 0x00, driver->node_id);
 
-	if(state == 0x0A) //Torque mode
+
+	if((state == 0x0A)) //Torque mode or pre op
 		return true;
 	else
 		return false;
@@ -238,7 +262,7 @@ void run_motors (driver_t* driver)
 
 	recive_pdo_message(driver);	//Receive PDO message
 
-	send_pdo_message(driver);		//Send PDO message
+//	send_pdo_message(driver);		//Send PDO message
 
 
 }
@@ -253,7 +277,7 @@ void run_motors (driver_t* driver)
 void send_pdo_sync_message(driver_t* driver)
 {
 	uint32_t current_time = millis();
-	if (current_time - driver->time_stamp >= 2000) {
+	if (current_time - driver->time_stamp >= 5000) {
 		driver->time_stamp = current_time;
 
 		//Send SYNC message
@@ -286,7 +310,14 @@ void recive_pdo_message(driver_t* driver)
 	if (can_isNewRxMsg()) {
 		can_readRxMsg(&rx_msg);
 
-//		PRINTF("Received message ID: %03X\n", rx_msg.id);
+		//PRINT the message received
+		PRINTF("ID: %03X ", rx_msg.id);
+		PRINTF("Data: ");
+		for (int i = 0; i < 8; i++) {
+			PRINTF("%02X ", rx_msg.data[i]);
+		}
+		PRINTF("\n");
+
 
 
 		if (rx_msg.id == (TPDO1_ID + driver->node_id ))
@@ -690,7 +721,40 @@ void map_tpdo(uint16_t node_id)
 //}
 
 
-
+void update_driver_leds(driver_t *driver)
+{
+	if (driver->nmt_state == NMT_STATE_BOOTUP) {
+		gpioWrite(LED_1_PORT, HIGH);
+		gpioWrite(LED_2_PORT, LOW);
+		gpioWrite(LED_3_PORT, LOW);
+		gpioWrite(LED_4_PORT, LOW);
+		gpioWrite(LED_5_PORT, LOW);
+	} else if (driver->nmt_state == NMT_STATE_PRE_OPERATIONAL) {
+		gpioWrite(LED_1_PORT, HIGH);
+		gpioWrite(LED_2_PORT, HIGH);
+		gpioWrite(LED_3_PORT, LOW);
+		gpioWrite(LED_4_PORT, LOW);
+		gpioWrite(LED_5_PORT, LOW);
+	} else if (driver->nmt_state == NMT_STATE_OPERATIONAL) {
+		gpioWrite(LED_1_PORT, HIGH);
+		gpioWrite(LED_2_PORT, HIGH);
+		gpioWrite(LED_3_PORT, HIGH);
+		gpioWrite(LED_4_PORT, LOW);
+		gpioWrite(LED_5_PORT, LOW);
+	} else if (driver->nmt_state == NMT_STATE_STOPPED) {
+		gpioWrite(LED_1_PORT, HIGH);
+		gpioWrite(LED_2_PORT, HIGH);
+		gpioWrite(LED_3_PORT, HIGH);
+		gpioWrite(LED_4_PORT, HIGH);
+		gpioWrite(LED_5_PORT, LOW);
+	} else {
+		gpioWrite(LED_1_PORT, HIGH);
+		gpioWrite(LED_2_PORT, HIGH);
+		gpioWrite(LED_3_PORT, HIGH);
+		gpioWrite(LED_4_PORT, HIGH);
+		gpioWrite(LED_5_PORT, HIGH);
+	}
+}
 
 
 

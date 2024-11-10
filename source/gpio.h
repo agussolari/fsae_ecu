@@ -68,8 +68,7 @@ typedef struct {
     bool button_state;
 } debounce_t;
 
-extern debounce_t pre_op_button;
-extern debounce_t op_button;
+extern debounce_t start_button;
 extern debounce_t drive_button;
 extern debounce_t stop_button;
 /*******************************************************************************
