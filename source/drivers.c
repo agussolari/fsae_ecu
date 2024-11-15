@@ -81,8 +81,8 @@ void update_state_machine(driver_t* driver) {
             driver->state = STATE_WAIT_START;
             PRINTF("Initialization Mode\n");
 
-            map_rpdo(driver->node_id);
-            map_tpdo(driver->node_id);
+//            map_rpdo(driver->node_id);
+//            map_tpdo(driver->node_id);
 
             break;
 
@@ -258,11 +258,10 @@ bool check_alignment_status(driver_t* driver)
 void run_motors (driver_t* driver)
 {
 
-	send_pdo_sync_message(driver);		//Send SYNC message every 2 seconds
 
 	recive_pdo_message(driver);	//Receive PDO message
 
-//	send_pdo_message(driver);		//Send PDO message
+	send_pdo_message(driver);		//Send PDO message
 
 
 }
@@ -283,7 +282,6 @@ void send_pdo_sync_message(driver_t* driver)
 		//Send SYNC message
 		can_msg_t sync_msg;
 		sync_msg.id = SYNC_MESSAGE_ID;
-		sync_msg.rtr = 0;
 		sync_msg.len = 1;
 		sync_msg.data[0] = 0x00;
 
@@ -310,50 +308,32 @@ void recive_pdo_message(driver_t* driver)
 	if (can_isNewRxMsg()) {
 		can_readRxMsg(&rx_msg);
 
-		//PRINT the message received
-		PRINTF("ID: %03X ", rx_msg.id);
-		PRINTF("Data: ");
-		for (int i = 0; i < 8; i++) {
-			PRINTF("%02X ", rx_msg.data[i]);
-		}
-		PRINTF("\n");
-
-
-
 		if (rx_msg.id == (TPDO1_ID + driver->node_id ))
 		{
-			PRINTF("TPDO1 received\n");
+//			PRINTF("TPDO1 received\n");
 			for (int i = 0; i < 8; i++)
 				driver->tpdo1_data.b[i] = rx_msg.data[i];
 		}
 		if ( rx_msg.id == (TPDO2_ID + driver->node_id ))
 		{
-			PRINTF("TPDO2 received\n");
+//			PRINTF("TPDO2 received\n");
 			for (int i = 0; i < 8; i++)
 				driver->tpdo2_data.b[i] = rx_msg.data[i];
 		}
 		if ( rx_msg.id == (TPDO3_ID + driver->node_id ))
 		{
-			PRINTF("TPDO3 received\n");
+//			PRINTF("TPDO3 received\n");
 			for (int i = 0; i < 8; i++)
 				driver->tpdo3_data.b[i] = rx_msg.data[i];
+		}
+		if (rx_msg.id == (TPDO4_ID + driver->node_id)) {
+			for (int i = 0; i < 8; i++)
+				driver->tpdo4_data.b[i] = rx_msg.data[i];
 		}
 	}
 }
 
-/**
- * @brief Send a PDO message
- * void send_pdo_message(uint8_t node_id)
- *
- * Send a PDO message to the node_id
- *
- * b[0], b[1]: Control word
- * b[2], b[3], b[4], b[5]: Target velocity
- * b[6], b[7]: Target torque
- *
- * @return void
- *
- */
+
 
 void send_pdo_message(driver_t* driver)
 {
@@ -372,7 +352,7 @@ void send_pdo_message(driver_t* driver)
             pdo_msg.len = 8;
 
             pdo_msg.data[0] = 0x0F;
-            pdo_msg.data[1] = driver->node_id;
+            pdo_msg.data[1] = 00;
 
             pdo_msg.data[2] = 0;
             pdo_msg.data[3] = 0;
@@ -385,7 +365,10 @@ void send_pdo_message(driver_t* driver)
             driver->pdo1_data.data.target_torque = 0;
 
             if (can_isTxReady())
+            {
                 can_sendTxMsg(&pdo_msg);
+                PRINTF("%d %d\n", current_throttle, current_torque);
+            }
 
             driver->zero_message_sent = true;
         }
@@ -415,7 +398,10 @@ void send_pdo_message(driver_t* driver)
             driver->pdo1_data.data.target_torque = current_torque;
 
             if (can_isTxReady())
+            {
                 can_sendTxMsg(&pdo_msg);
+                PRINTF("%d %d\n", current_throttle, current_torque);
+            }
 
             // Update previous values
             driver->prev_throttle = current_throttle;
@@ -505,10 +491,10 @@ bool send_sdo_mode_of_operation(int8_t mode, uint16_t node_id)
 void map_rpdo(uint16_t node_id)
 {
     // Disable PDO communication
-    send_sdo_write_command(0x2B, 0x1400, 0x01, 0x80000000, node_id);
+    send_sdo_write_command(0x23, 0x1800, 0x01, 0x80000000, node_id);
 
     // Disable PDO mapping
-    send_sdo_write_command(0x2B, 0x1600, 0x00, 0x00, node_id);
+    send_sdo_write_command(0x2B, 0x1A00, 0x00, 0x00, node_id);
 
     // Map RPDO
     // b[0], b[1]: Control word (0x6040, 0x00)
@@ -517,7 +503,7 @@ void map_rpdo(uint16_t node_id)
 
 
     //Map number of entry: 3 entry
-    send_sdo_write_command(0x2F, 0x1600, 0x00, 0x03, node_id);
+    send_sdo_write_command(0x27, 0x1600, 0x00, 0x03, node_id);
 
     //Map Control Word: 0x6040, 0x00 (2 bytes)
     send_sdo_write_command(0x23, 0x1600, 0x01, 0x60400010, node_id);
@@ -564,7 +550,7 @@ void map_tpdo(uint16_t node_id)
 	// b[6], b[7]: Actual torque 0x6077, 0x00
 
 	//Map number of entry: 3 entry
-	send_sdo_write_command(0x2F, 0x1A00, 0x00, 0x03, node_id);
+	send_sdo_write_command(0x27, 0x1A00, 0x00, 0x03, node_id);
 
 	//Map Status Word: 0x6041, 0x00 (2 bytes)
 	send_sdo_write_command(0x23, 0x1A00, 0x01, 0x60410010, node_id);

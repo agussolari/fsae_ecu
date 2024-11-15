@@ -117,11 +117,10 @@ typedef union {
 typedef union {
 	uint8_t b[8];
 	struct {
+		uint32_t actual_velocity;
 		uint8_t controller_temperature;
-		uint8_t motor_temperature;
-		uint16_t dc_link_voltage;
-		int16_t logic_voltage;
 		uint16_t current_demand;
+		uint8_t resv_1;
 	} data;
 } tpdo2_data_t;
 
@@ -131,10 +130,22 @@ typedef union {
 	struct {
 		uint16_t motor_current_actual_value;
 		uint16_t electrical_angle;
-		uint16_t phase_a_current;
-		uint16_t phase_b_current;
+		uint8_t phase_a_current;
+		uint8_t phase_b_current;
+		uint16_t resv_2;
 	} data;
 } tpdo3_data_t;
+
+//Make union of TPDO4 data
+typedef union {
+	uint8_t b[8];
+	struct {
+		uint16_t torque_regulator;
+		uint32_t actual_velocity;
+		uint8_t resv_3;
+		uint8_t motor_temperature;
+	} data;
+} tpdo4_data_t;
 
 //Make union of PDO1 data
 typedef union {
@@ -173,6 +184,7 @@ typedef struct {
     tpdo1_data_t tpdo1_data;
     tpdo2_data_t tpdo2_data;
     tpdo3_data_t tpdo3_data;
+    tpdo4_data_t tpdo4_data;
 
     	//RPDO data
     pdo1_data_t pdo1_data;

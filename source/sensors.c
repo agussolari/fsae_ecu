@@ -50,7 +50,7 @@ void init_buttons(void) {
 void run_sensors(void) {
 
 	// Leer el valor del acelerador y escalarlo a un rango de 0 a 1000
-	sensor_values.throttle = (uint32_t)(((float)adcReadChannelBlocking(ADC_CHANNEL_THROTTLE)/65535)*1000);
+	sensor_values.throttle = (uint32_t)(((float)adcReadChannelBlocking(ADC_CHANNEL_THROTTLE)/65535)*3000);
 
 	// Leer el valor del freno y escalarlo a un rango de 0 a 1000
 	sensor_values.brake = (uint16_t)(((float)adcReadChannelBlocking(ADC_CHANNEL_BRAKE)/65535)*1000);
@@ -63,7 +63,7 @@ void run_sensors(void) {
     //tps_data.tps1_value = adc_read(TPS1_ADC_CHANNEL);
     //tps_data.tps2_value = adc_read(TPS2_ADC_CHANNEL);
 
-    PRINTF("%d %d %d %d\n", sensor_values.throttle, sensor_values.brake, sensor_values.torque, sensor_values.direction);
+//    PRINTF("%d %d %d %d\n", sensor_values.throttle, sensor_values.brake, sensor_values.torque, sensor_values.direction);
 }
 
 

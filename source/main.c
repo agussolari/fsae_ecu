@@ -28,6 +28,9 @@
 
 #include "sensors.h"
 #include "drivers.h"
+#include "max7219.h"
+
+
 
 
 driver_t driver_1;
@@ -45,16 +48,20 @@ int main(void)
 	init_buttons();
 	init_sensor();
 
-	//Init drivers
+//
+//	//Init drivers
 	driver_1.node_id = NODE_ID_1;
-	driver_2.node_id = NODE_ID_2;
-
-
+//	driver_2.node_id = NODE_ID_2;
+//
+//
 	init_drivers(&driver_1);
 //	init_drivers(&driver_2);
 
+	Init_SPI0();
+
 
     while (1) {
+
 
         update_state_machine(&driver_1);
 //        update_state_machine(&driver_2);
