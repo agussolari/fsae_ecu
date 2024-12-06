@@ -8,13 +8,15 @@ C_SRCS += \
 ../source/adc.c \
 ../source/can.c \
 ../source/can_open.c \
+../source/display.c \
 ../source/drivers.c \
 ../source/gpio.c \
-../source/led.c \
+../source/leds.c \
 ../source/main.c \
 ../source/max7219.c \
 ../source/millis.c \
 ../source/sensors.c \
+../source/spi.c \
 ../source/uart.c 
 
 C_DEPS += \
@@ -22,13 +24,15 @@ C_DEPS += \
 ./source/adc.d \
 ./source/can.d \
 ./source/can_open.d \
+./source/display.d \
 ./source/drivers.d \
 ./source/gpio.d \
-./source/led.d \
+./source/leds.d \
 ./source/main.d \
 ./source/max7219.d \
 ./source/millis.d \
 ./source/sensors.d \
+./source/spi.d \
 ./source/uart.d 
 
 OBJS += \
@@ -36,13 +40,15 @@ OBJS += \
 ./source/adc.o \
 ./source/can.o \
 ./source/can_open.o \
+./source/display.o \
 ./source/drivers.o \
 ./source/gpio.o \
-./source/led.o \
+./source/leds.o \
 ./source/main.o \
 ./source/max7219.o \
 ./source/millis.o \
 ./source/sensors.o \
+./source/spi.o \
 ./source/uart.o 
 
 
@@ -58,7 +64,7 @@ source/%.o: ../source/%.c source/subdir.mk
 clean: clean-source
 
 clean-source:
-	-$(RM) ./source/SysTick.d ./source/SysTick.o ./source/adc.d ./source/adc.o ./source/can.d ./source/can.o ./source/can_open.d ./source/can_open.o ./source/drivers.d ./source/drivers.o ./source/gpio.d ./source/gpio.o ./source/led.d ./source/led.o ./source/main.d ./source/main.o ./source/max7219.d ./source/max7219.o ./source/millis.d ./source/millis.o ./source/sensors.d ./source/sensors.o ./source/uart.d ./source/uart.o
+	-$(RM) ./source/SysTick.d ./source/SysTick.o ./source/adc.d ./source/adc.o ./source/can.d ./source/can.o ./source/can_open.d ./source/can_open.o ./source/display.d ./source/display.o ./source/drivers.d ./source/drivers.o ./source/gpio.d ./source/gpio.o ./source/leds.d ./source/leds.o ./source/main.d ./source/main.o ./source/max7219.d ./source/max7219.o ./source/millis.d ./source/millis.o ./source/sensors.d ./source/sensors.o ./source/spi.d ./source/spi.o ./source/uart.d ./source/uart.o
 
 .PHONY: clean-source
 

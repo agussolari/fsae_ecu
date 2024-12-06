@@ -34,6 +34,19 @@ void init_drivers(driver_t* driver)
 {
 	driver->state = STATE_RESET_NODE;
 	driver->time_stamp = 0;
+	driver->sensor_time_stamp = 0;
+    driver->last_uart_time = 0;
+
+
+	//Clean data of the PDO and TPDO
+	for (int i = 0; i < 8; i++) {
+		driver->tpdo1_data.b[i] = 0;
+		driver->tpdo2_data.b[i] = 0;
+		driver->tpdo3_data.b[i] = 0;
+		driver->tpdo4_data.b[i] = 0;
+		driver->pdo1_data.b[i] = 0;
+		driver->pdo2_data.b[i] = 0;
+	}
 
 	millis_init();
 
@@ -57,6 +70,7 @@ void update_state_machine(driver_t* driver) {
 
             driver->align = false;
             driver->state = STATE_POWER_ON_RESET;
+            driver->mode = MODE_TORQUE;
             break;
 
         case STATE_POWER_ON_RESET:
@@ -107,7 +121,8 @@ void update_state_machine(driver_t* driver) {
 
             if (driver->align)
             {
-            	 send_sdo_mode_of_operation(0x09, driver->node_id);
+            	 send_sdo_mode_of_operation(MODE_VELOCITY, driver->node_id);
+            	 driver->mode = MODE_VELOCITY;
             	 PRINTF("Mode of operation set to Velocity\n");
 
 				PRINTF("Operational Mode\n");
@@ -119,6 +134,7 @@ void update_state_machine(driver_t* driver) {
             else
             {
                 align_motors(driver->node_id);
+                driver->mode = MODE_ALIGNMENT;
                 PRINTF("Aligning motors\n");
                 send_nmt_command(0x01, driver->node_id);
                 PRINTF("Operational Mode for align\n");
@@ -141,7 +157,8 @@ void update_state_machine(driver_t* driver) {
                 driver->nmt_state = NMT_STATE_PRE_OPERATIONAL;
                 PRINTF("Pre-Operational Mode\n");
 
-                send_sdo_mode_of_operation(0x09, driver->node_id);
+                send_sdo_mode_of_operation(MODE_VELOCITY, driver->node_id);
+                driver->mode = MODE_VELOCITY;
                 PRINTF("Mode of operation set to Velocity\n");
 
                 PRINTF("Operational Mode\n");
@@ -343,12 +360,15 @@ void send_pdo_message(driver_t* driver)
     int32_t current_throttle = sensor_values.throttle;
     int16_t current_torque = sensor_values.torque;
 
+    driver->pdo1_data.data.control_word = 0x0F | driver->node_id << 8;
+    driver->pdo1_data.data.target_velocity = current_throttle;
+    driver->pdo1_data.data.target_torque = current_torque;
+
     // Check if sensor values are zero
     if (current_throttle == 0 && current_torque == 0) {
         if (!driver->zero_message_sent) {
             can_msg_t pdo_msg;
             pdo_msg.id = RPDO1_ID + driver->node_id;
-            pdo_msg.rtr = 0;
             pdo_msg.len = 8;
 
             pdo_msg.data[0] = 0x0F;
@@ -375,32 +395,30 @@ void send_pdo_message(driver_t* driver)
     } else {
         driver->zero_message_sent = false;
 
-        if (abs(current_throttle - driver->prev_throttle) > throttle_threshold ||
-            abs(current_torque - driver->prev_torque) > torque_threshold)
+        if ((abs(current_throttle - driver->prev_throttle) > throttle_threshold ||
+             abs(current_torque - driver->prev_torque) > torque_threshold) &&
+            (millis() - driver->sensor_time_stamp >= SENSOR_READ_INTERVAL))
         {
             can_msg_t pdo_msg;
             pdo_msg.id = RPDO1_ID + driver->node_id;
-            pdo_msg.rtr = 0;
             pdo_msg.len = 8;
 
             pdo_msg.data[0] = 0x0F;
             pdo_msg.data[1] = driver->node_id;
-            driver->pdo1_data.data.control_word = 0x0F | driver->node_id << 8;
 
             pdo_msg.data[2] = (uint8_t)(current_throttle & 0x000000FF);
             pdo_msg.data[3] = (uint8_t)((current_throttle >> 8) & 0x000000FF);
             pdo_msg.data[4] = (uint8_t)((current_throttle >> 16) & 0x000000FF);
             pdo_msg.data[5] = (uint8_t)((current_throttle >> 24) & 0x000000FF);
-            driver->pdo1_data.data.target_velocity = current_throttle;
 
             pdo_msg.data[6] = (uint8_t)(current_torque & 0x00FF);
             pdo_msg.data[7] = (uint8_t)((current_torque >> 8) & 0x00FF);
-            driver->pdo1_data.data.target_torque = current_torque;
 
             if (can_isTxReady())
             {
                 can_sendTxMsg(&pdo_msg);
                 PRINTF("%d %d\n", current_throttle, current_torque);
+                driver->sensor_time_stamp = millis(); // Update the timestamp
             }
 
             // Update previous values
@@ -599,148 +617,67 @@ void map_tpdo(uint16_t node_id)
 
 
 
-//void send_motor_data_uart(driver_t* driver) {
-//    const char* motor_state;
-//    const char* operation_mode;
-//    int target_velocity = driver->target_velocity; // Reemplazar con el valor real
-//
-//    //tpdo[1] = b[2], b[3], b[4], b[5]
-//    int actual_velocity = driver->tpdo1_data[2] | driver->tpdo1_data[3] << 8 | driver->tpdo1_data[4] << 16 | driver->tpdo1_data[5] << 24;
-//    float current = driver->tpdo2_data[6] | driver->tpdo2_data[7] << 8; // Reemplazar con el valor real
-//    float actual_torque = driver->tpdo1_data[6] | driver->tpdo1_data[7] << 8; // Reemplazar con el valor real
-//    float desired_torque = (float)(driver->target_torque); // Reemplazar con el valor real
-//    float temperature = driver->tpdo2_data[5]; // Reemplazar con el valor real
-//    int error_indicator = 0; // Reemplazar con el valor real
-//
-//    // Determinar el estado del motor
-//    switch (driver->state) {
-//        case STATE_PRE_OPERATIONAL:
-//            motor_state = "Pre-operacional";
-//            break;
-//        case STATE_OPERATIONAL:
-//            motor_state = "Operacional";
-//            break;
-//        case STATE_DRIVE:
-//            motor_state = "Drive";
-//            break;
-//        case STATE_STOPPED:
-//            motor_state = "Stop";
-//            break;
-//        default:
-//            motor_state = "Unknown";
-//            break;
-//    }
-//
-//    // Determinar el modo de operación
-////    switch (driver->mode) {
-////        case MODE_VELOCITY:
-////            operation_mode = "Velocidad";
-////            break;
-////        case MODE_TORQUE:
-////            operation_mode = "Torque";
-////            break;
-////        case MODE_ALIGNMENT:
-////            operation_mode = "Alineación";
-////            break;
-////        default:
-////            operation_mode = "Unknown";
-////            break;
-////    }
-//
-//    // Formatear los datos manualmente
-//    char buffer[256] = {0};
-//    char temp[50];
-//
-//    // Concatenar node_id
-//    itoa(driver->node_id, temp, 10);
-//    strcat(buffer, temp);
-//    strcat(buffer, ",");
-//
-//    // Concatenar motor_state
-//    strcat(buffer, motor_state);
-//    strcat(buffer, ",");
-//
-//    // Concatenar operation_mode
-//    strcat(buffer, operation_mode);
-//    strcat(buffer, ",");
-//
-//    // Concatenar target_velocity
-//    itoa(target_velocity, temp, 10);
-//    strcat(buffer, temp);
-//    strcat(buffer, ",");
-//
-//    // Concatenar actual_velocity
-//    itoa(actual_velocity, temp, 10);
-//    strcat(buffer, temp);
-//    strcat(buffer, ",");
-//
-//    // Concatenar current
-//    snprintf(temp, sizeof(temp), "%.2f", current);
-//    strcat(buffer, temp);
-//    strcat(buffer, ",");
-//
-//    // Concatenar actual_torque
-//    snprintf(temp, sizeof(temp), "%.2f", actual_torque);
-//    strcat(buffer, temp);
-//    strcat(buffer, ",");
-//
-//    // Concatenar desired_torque
-//    snprintf(temp, sizeof(temp), "%.2f", desired_torque);
-//    strcat(buffer, temp);
-//    strcat(buffer, ",");
-//
-//    // Concatenar temperature
-//    snprintf(temp, sizeof(temp), "%.2f", temperature);
-//    strcat(buffer, temp);
-//    strcat(buffer, ",");
-//
-//    // Concatenar error_indicator
-//    itoa(error_indicator, temp, 10);
-//    strcat(buffer, temp);
-//
-//    strcat(buffer, "\n");
-//
-//    // Enviar los datos por UART
-//    uartWriteStr(buffer);
-//
-//
-//}
+void send_motor_data_uart(driver_t *driver) {
+	uint32_t current_time = millis();
+	if (current_time - driver->last_uart_time >= 500) {
+		driver->last_uart_time = current_time;
+
+		char buffer[512];
+
+		// Formatear los datos en un mensaje legible
+		int len = snprintf(buffer, sizeof(buffer),
+				":%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d:", driver->node_id,
+				driver->state,
+				driver->nmt_state,
+				driver->mode,
+				driver->tpdo4_data.data.motor_temperature,
+				driver->tpdo2_data.data.controller_temperature,
+				driver->tpdo3_data.data.motor_current_actual_value,
+				driver->pdo1_data.data.target_torque,
+				driver->tpdo1_data.data.actual_torque,
+				driver->pdo1_data.data.target_velocity,
+				driver->tpdo4_data.data.actual_velocity,
+				driver->error_code);
+
+		// Enviar los datos por UART
+		uartWriteMsg(buffer, len);
+	}
+}
 
 
 void update_driver_leds(driver_t *driver)
 {
+//UPDATE ECU LEDS
+	// Update the LEDs based on the NMT state
 	if (driver->nmt_state == NMT_STATE_BOOTUP) {
-		gpioWrite(LED_1_PORT, HIGH);
-		gpioWrite(LED_2_PORT, LOW);
-		gpioWrite(LED_3_PORT, LOW);
-		gpioWrite(LED_4_PORT, LOW);
-		gpioWrite(LED_5_PORT, LOW);
+		blink_led(PIN_LED_RED);
+
 	} else if (driver->nmt_state == NMT_STATE_PRE_OPERATIONAL) {
-		gpioWrite(LED_1_PORT, HIGH);
-		gpioWrite(LED_2_PORT, HIGH);
-		gpioWrite(LED_3_PORT, LOW);
-		gpioWrite(LED_4_PORT, LOW);
-		gpioWrite(LED_5_PORT, LOW);
+		gpioWrite(PIN_LED_RED, LOW);
+
 	} else if (driver->nmt_state == NMT_STATE_OPERATIONAL) {
-		gpioWrite(LED_1_PORT, HIGH);
-		gpioWrite(LED_2_PORT, HIGH);
-		gpioWrite(LED_3_PORT, HIGH);
-		gpioWrite(LED_4_PORT, LOW);
-		gpioWrite(LED_5_PORT, LOW);
+		gpioWrite(PIN_LED_GREEN, LOW);
+
+	} else if (driver->nmt_state == NMT_STATE_DRIVE) {
+		blink_led(PIN_LED_GREEN);
+
 	} else if (driver->nmt_state == NMT_STATE_STOPPED) {
-		gpioWrite(LED_1_PORT, HIGH);
-		gpioWrite(LED_2_PORT, HIGH);
-		gpioWrite(LED_3_PORT, HIGH);
-		gpioWrite(LED_4_PORT, HIGH);
-		gpioWrite(LED_5_PORT, LOW);
+		blink_led(PIN_LED_BLUE);
+
 	} else {
-		gpioWrite(LED_1_PORT, HIGH);
-		gpioWrite(LED_2_PORT, HIGH);
-		gpioWrite(LED_3_PORT, HIGH);
-		gpioWrite(LED_4_PORT, HIGH);
-		gpioWrite(LED_5_PORT, HIGH);
+		gpioWrite(PIN_LED_GREEN, LOW);
+		gpioWrite(PIN_LED_RED, LOW);
+		gpioWrite(PIN_LED_RED, LOW);
 	}
+//UPDATE ONBOARD LEDS
+	if (driver->nmt_state == NMT_STATE_BOOTUP)
+	{
+
+	}
+
+
 }
+
 
 
 

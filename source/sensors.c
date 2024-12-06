@@ -33,12 +33,7 @@ void init_buttons(void) {
 	gpioMode(DRIVE_GPIO_PORT, GPIO_INPUT);
 	gpioMode(STOP_GPIO_PORT, GPIO_INPUT);
 
-	//Inicializar los leds
-	gpioMode(LED_1_PORT, GPIO_OUTPUT);
-	gpioMode(LED_2_PORT, GPIO_OUTPUT);
-	gpioMode(LED_3_PORT, GPIO_OUTPUT);
-	gpioMode(LED_4_PORT, GPIO_OUTPUT);
-	gpioMode(LED_5_PORT, GPIO_OUTPUT);
+
 
 	PRINTF("Buttons started\n");
 }

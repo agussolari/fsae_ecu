@@ -30,6 +30,8 @@
 #define IMPLAUSIBILITY_THRESHOLD 0.10 // 10% threshold
 #define IMPLAUSIBILITY_TIME_MS 100
 
+#define SENSOR_READ_INTERVAL 100 // Intervalo de lectura de los sensores en ms
+
 
 
 void init_sensor(void);

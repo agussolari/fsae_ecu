@@ -28,8 +28,8 @@
 
 #include "sensors.h"
 #include "drivers.h"
+#include "leds.h"
 #include "max7219.h"
-
 
 
 
@@ -47,24 +47,38 @@ int main(void)
 	can_init(CAN_BAUDRATE);
 	init_buttons();
 	init_sensor();
+	uartInit();
+	Init_SPI();
+	init_leds(); //ECU LEDS
+	LEDS_Init(); //ON BOARD LEDS
 
 //
 //	//Init drivers
 	driver_1.node_id = NODE_ID_1;
-//	driver_2.node_id = NODE_ID_2;
+	driver_2.node_id = NODE_ID_2;
 //
 //
 	init_drivers(&driver_1);
-//	init_drivers(&driver_2);
+	init_drivers(&driver_2);
 
-	Init_SPI0();
+
+
 
 
     while (1) {
 
 
         update_state_machine(&driver_1);
-//        update_state_machine(&driver_2);
+        update_state_machine(&driver_2);
+
+
+
+        send_motor_data_uart(&driver_1);
+        send_motor_data_uart(&driver_2);
+
+        update_driver_leds(&driver_1);
+
+
 
 //    	update_driver_leds(&driver_1);
 

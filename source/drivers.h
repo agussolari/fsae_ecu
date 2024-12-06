@@ -15,6 +15,8 @@
 #include "can_open.h"
 #include "millis.h"
 #include "uart.h"
+#include "leds.h"
+#include "display.h"
 
 #define CAN_BAUDRATE			500000
 #define NODE_ID_1					1
@@ -32,20 +34,9 @@
 #define TPDO4_ID 				(0x480)
 
 #define START_GPIO_PORT 		PORTNUM2PIN(0, 28)
-#define DRIVE_GPIO_PORT 		PORTNUM2PIN(0, 27)
-#define STOP_GPIO_PORT 			PORTNUM2PIN(0, 14)
+#define DRIVE_GPIO_PORT 		PORTNUM2PIN(0, 24)
+#define STOP_GPIO_PORT 			PORTNUM2PIN(0, 13)
 
-//#define LED_1_PORT 				PORTNUM2PIN(1, 29)
-//#define LED_2_PORT 				PORTNUM2PIN(0, 20)
-//#define LED_3_PORT 				PORTNUM2PIN(0, 21)
-//#define LED_4_PORT 				PORTNUM2PIN(1, 25)
-//#define LED_5_PORT 				PORTNUM2PIN(0, 3)
-
-#define LED_1_PORT 				PORTNUM2PIN(1, 9)
-#define LED_2_PORT 				PORTNUM2PIN(1, 10)
-#define LED_3_PORT 				PORTNUM2PIN(1, 11)
-#define LED_4_PORT 				PORTNUM2PIN(0, 13)
-#define LED_5_PORT 				PORTNUM2PIN(0, 14)
 
 #define SAVE_PARAM 				(uint32_t)(0x65766173)
 
@@ -177,6 +168,10 @@ typedef struct {
     nmt_state_t nmt_state;
     uint16_t error_code;
     uint32_t time_stamp;
+    uint32_t sensor_time_stamp;
+    uint32_t last_uart_time;
+
+    mode_t mode;
 
     bool align;
 
