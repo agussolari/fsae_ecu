@@ -29,9 +29,12 @@
 #include "sensors.h"
 #include "drivers.h"
 #include "leds.h"
-#include "max7219.h"
+#include "display.h"
+#include "spi.h"
+#include "systick.h"
 
-
+void update_gui(void);
+void update_led(void);
 
 driver_t driver_1;
 driver_t driver_2;
@@ -51,6 +54,7 @@ int main(void)
 	Init_SPI();
 	init_leds(); //ECU LEDS
 	LEDS_Init(); //ON BOARD LEDS
+	SysTick_Init();
 
 //
 //	//Init drivers
@@ -60,6 +64,12 @@ int main(void)
 //
 	init_drivers(&driver_1);
 	init_drivers(&driver_2);
+
+	//Initialice periodic interrupt for uart and led control
+	SysTick_RegisterCallback(&update_gui, 500);
+	SysTick_RegisterCallback(&update_led, 500);
+
+
 
 
 
@@ -73,14 +83,9 @@ int main(void)
 
 
 
-        send_motor_data_uart(&driver_1);
-        send_motor_data_uart(&driver_2);
-
-        update_driver_leds(&driver_1);
 
 
 
-//    	update_driver_leds(&driver_1);
 
     	//PRINF SENSOR VALUES
 //    	run_sensors();
@@ -96,6 +101,21 @@ int main(void)
 //    	PRINTF("%d %d %d %d %d \n", gpioRead(LED_1_PORT), gpioRead(LED_2_PORT), gpioRead(LED_3_PORT), gpioRead(LED_4_PORT), gpioRead(LED_5_PORT));
     }
 }
+
+
+
+void update_led(void)
+{
+    update_driver_leds(&driver_1);
+    update_driver_leds(&driver_2);
+}
+
+void update_gui(void)
+{
+    send_motor_data_uart(&driver_1);
+    send_motor_data_uart(&driver_2);
+}
+
 
 
 

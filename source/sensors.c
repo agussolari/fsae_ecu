@@ -42,25 +42,17 @@ void init_buttons(void) {
 // Funcion para leer los sensores y guardar los valores de
 // acelerador y freno en variables globales
 
-void run_sensors(void) {
-
-	// Leer el valor del acelerador y escalarlo a un rango de 0 a 1000
-	sensor_values.throttle = (uint32_t)(((float)adcReadChannelBlocking(ADC_CHANNEL_THROTTLE)/65535)*3000);
-
+void run_sensors(void)
+{
 	// Leer el valor del freno y escalarlo a un rango de 0 a 1000
 	sensor_values.brake = (uint16_t)(((float)adcReadChannelBlocking(ADC_CHANNEL_BRAKE)/65535)*1000);
 
-	// Leer el valor de la direccion y escalarlo a un rango de 0 a 1000
-	sensor_values.torque = (uint16_t)(((float)adcReadChannelBlocking(ADC_CHANNEL_TORQUE)/65535)*1000);
-
 	sensor_values.direction = (uint16_t)(((float)adcReadChannelBlocking(ADC_CHANNEL_DIRECTION)/65535)*1000);
 
-    //tps_data.tps1_value = adc_read(TPS1_ADC_CHANNEL);
-    //tps_data.tps2_value = adc_read(TPS2_ADC_CHANNEL);
+    tps_data.tps1_value = (uint16_t)(((float)adcReadChannelBlocking(ADC_CHANNEL_TPS1)/65535)*1000);
+    tps_data.tps2_value = (uint16_t)(((float)adcReadChannelBlocking(ADC_CHANNEL_TPS2)/65535)*1000);
 
-//    PRINTF("%d %d %d %d\n", sensor_values.throttle, sensor_values.brake, sensor_values.torque, sensor_values.direction);
 }
-
 
 /************************************
  *       TPS sensor functions		*
@@ -70,7 +62,8 @@ void run_sensors(void) {
 //    tps_data.tps1_value = adc_read(TPS1_ADC_CHANNEL);
 //    tps_data.tps2_value = adc_read(TPS2_ADC_CHANNEL);
 //}
-bool check_implausibility() {
+bool check_implausibility()
+{
     float tps1_percentage = (float)tps_data.tps1_value / ADC_MAX_VALUE;
     float tps2_percentage = (float)tps_data.tps2_value / ADC_MAX_VALUE;
     float deviation = fabs(tps1_percentage - tps2_percentage);

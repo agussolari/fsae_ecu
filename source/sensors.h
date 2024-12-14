@@ -20,13 +20,12 @@
 
 
 
-#define ADC_CHANNEL_THROTTLE ADC_CH0A // Canal del ADC que se conecta al acelerador
-#define ADC_CHANNEL_BRAKE ADC_CH0B // Canal del ADC que se conecta al freno
+#define ADC_CHANNEL_BRAKE ADC_CH3A // Canal del ADC que se conecta al freno
+#define ADC_CHANNEL_TPS1 ADC_CH0A
+#define ADC_CHANNEL_TPS2 ADC_CH0B
 #define ADC_CHANNEL_TORQUE ADC_CH3A // Canal del ADC que se conecta al torque
 #define ADC_CHANNEL_DIRECTION ADC_CH3B // Canal del ADC que se conecta a la direccion
 
-#define TPS1_ADC_CHANNEL 0
-#define TPS2_ADC_CHANNEL 1
 #define IMPLAUSIBILITY_THRESHOLD 0.10 // 10% threshold
 #define IMPLAUSIBILITY_TIME_MS 100
 

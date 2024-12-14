@@ -81,11 +81,11 @@ void update_state_machine(driver_t* driver) {
                 driver->state = STATE_INITIALIZATION;
                 break;
             }
-            if (stop_button.last_button_state) {
-                driver->state = STATE_RESET_NODE;
-                break;
-
-            }
+//            if (stop_button.last_button_state) {
+//                driver->state = STATE_RESET_NODE;
+//                break;
+//
+//            }
             break;
 
         case STATE_INITIALIZATION:
@@ -355,10 +355,10 @@ void recive_pdo_message(driver_t* driver)
 void send_pdo_message(driver_t* driver)
 {
     const int32_t throttle_threshold = 5; // Define a suitable threshold
-    const int16_t torque_threshold = 5;   // Define a suitable threshold
+    const int32_t torque_threshold = 5; // Define a suitable threshold
 
-    int32_t current_throttle = sensor_values.throttle;
-    int16_t current_torque = sensor_values.torque;
+    int32_t current_throttle = (int32_t)((tps_data.tps1_value + tps_data.tps2_value)/2);
+    int32_t current_torque = 0;
 
     driver->pdo1_data.data.control_word = 0x0F | driver->node_id << 8;
     driver->pdo1_data.data.target_velocity = current_throttle;

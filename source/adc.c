@@ -109,21 +109,8 @@ void adcInit(void)
 	if (yaInit)
 		return;
 
-	// 1) Configure pins
-	const uint32_t adc_config = IOCON_PIO_DIGIMODE(0) | IOCON_PIO_ASW(1);
 
-#if ADC_CH0A_USED
-	IOCON_PinMuxSet(IOCON, 0, 23, adc_config);
-#endif // ADC_CH0A_USED
-#if ADC_CH0B_USED
-	IOCON_PinMuxSet(IOCON, 0, 16, adc_config);
-#endif // ADC_CH0B_USED
-#if ADC_CH3A_USED
-	IOCON_PinMuxSet(IOCON, 0, 31, adc_config);
-#endif // ADC_CH3A_USED
-#if ADC_CH3B_USED
-	IOCON_PinMuxSet(IOCON, 1, 0, adc_config);
-#endif // ADC_CH3B_USED
+
 
 	// 2) Set clock source for ADC
     CLOCK_SetClkDiv(kCLOCK_DivAdcAsyncClk, 2U, true);

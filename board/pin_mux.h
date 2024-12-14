@@ -31,6 +31,8 @@ void BOARD_InitBootPins(void);
 #define IOCON_PIO_DIGITAL_EN 0x0100u  /*!<@brief Enables digital function */
 #define IOCON_PIO_FUNC0 0x00u         /*!<@brief Selects pin function 0 */
 #define IOCON_PIO_FUNC1 0x01u         /*!<@brief Selects pin function 1 */
+#define IOCON_PIO_FUNC2 0x02u         /*!<@brief Selects pin function 2 */
+#define IOCON_PIO_FUNC4 0x04u         /*!<@brief Selects pin function 4 */
 #define IOCON_PIO_FUNC6 0x06u         /*!<@brief Selects pin function 6 */
 #define IOCON_PIO_FUNC8 0x08u         /*!<@brief Selects pin function 8 */
 #define IOCON_PIO_INV_DI 0x00u        /*!<@brief Input function is not inverted */

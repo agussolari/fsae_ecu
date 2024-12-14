@@ -1,5 +1,5 @@
-#ifndef LEDS_H_
-#define LEDS_H_
+#ifndef DISP_H_
+#define DISP_H_
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -29,4 +29,4 @@ void LEDS_Update(void);
 // Establece el intervalo de parpadeo para un LED específico
 void LEDS_SetBlinkInterval(led_t *led, uint32_t interval_ms);
 
-#endif // LEDS_H_
+#endif // DISP_H_

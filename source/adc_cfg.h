@@ -13,11 +13,6 @@
  ******************************************************************************/
 
 
-#define ADC_CH0A_USED	1
-#define ADC_CH0B_USED	1
-#define ADC_CH3A_USED	1
-#define ADC_CH3B_USED	1
-
 #define ADC_RESOLUTION_BITS		12 // 12 o 16
 
 enum { ADC_VREF_VDDA = 1, ADC_VREF_VREFP };
