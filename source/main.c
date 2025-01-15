@@ -18,6 +18,9 @@
 #include "can.h"
 #include "gpio.h"
 
+#include "fsl_common.h"
+
+
 
 #include <stdio.h>
 
@@ -32,30 +35,38 @@
 #include "display.h"
 #include "spi.h"
 #include "systick.h"
+#include "lora.h"
 
-void update_gui(void);
-void update_led(void);
+void update_data(void);
 
 driver_t driver_1;
 driver_t driver_2;
 
+
+
 int main(void)
 {
-
+	/* Init board hardware. */
 	BOARD_InitPins();
 	BOARD_BootClockFROHF96M();
 	SystemCoreClockUpdate();
 	BOARD_InitDebugConsole();
 
+
 	can_init(CAN_BAUDRATE);
 	init_buttons();
 	init_sensor();
 	uartInit();
-	Init_SPI();
+
+	SysTick_Init();
+	Init_SPI(SPI_LORA, SPI1, SPI_MASTER_CLK_FREQ, SPI_SSEL, SPI_SPOL);
+	Init_SPI(SPI_LED, SPI3, SPI_MASTER_CLK_FREQ, SPI_SSEL, SPI_SPOL);
+//
 	init_leds(); //ECU LEDS
 	LEDS_Init(); //ON BOARD LEDS
-	SysTick_Init();
+	LoRa_Init();
 
+//
 //
 //	//Init drivers
 	driver_1.node_id = NODE_ID_1;
@@ -65,58 +76,35 @@ int main(void)
 	init_drivers(&driver_1);
 	init_drivers(&driver_2);
 
-	//Initialice periodic interrupt for uart and led control
-	SysTick_RegisterCallback(&update_gui, 500);
-	SysTick_RegisterCallback(&update_led, 500);
+//	//Initialice periodic interrupt for uart and led control and lora
+	SysTick_RegisterCallback(&update_data, 1000);
+	PRINTF("Init complete\n");
+//
 
+    while (1)
+    {
+//        update_state_machine(&driver_1);
+//        update_state_machine(&driver_2);
 
-
-
-
-
-
-    while (1) {
-
-
-        update_state_machine(&driver_1);
-        update_state_machine(&driver_2);
-
-
-
-
-
-
-
-    	//PRINF SENSOR VALUES
-//    	run_sensors();
-//    	PRINTF("%d %d %d %d \n", sensor_values.throttle, sensor_values.brake, sensor_values.torque, sensor_values.direction);
-
-//        debounce_button(&start_button, START_GPIO_PORT);
-//        debounce_button(&drive_button, DRIVE_GPIO_PORT);
-//        debounce_button(&stop_button, STOP_GPIO_PORT);
-    	//PRINTF BUTTONS VALUES
-//        PRINTF("%d %d %d \n", start_button.last_button_state, drive_button.button_state, stop_button.button_state);
-
-//    	PRINTF LEDS VALUES
-//    	PRINTF("%d %d %d %d %d \n", gpioRead(LED_1_PORT), gpioRead(LED_2_PORT), gpioRead(LED_3_PORT), gpioRead(LED_4_PORT), gpioRead(LED_5_PORT));
     }
 }
 
 
 
-void update_led(void)
+
+void update_data(void)
 {
-    update_driver_leds(&driver_1);
-    update_driver_leds(&driver_2);
+//	update_driver_leds(&driver_1);
+//
+//	send_motor_data_uart(&driver_1);
+//	send_motor_data_uart(&driver_2);
+//
+//	send_motor_data_lora(&driver_1);
+//	send_motor_data_lora(&driver_2);
+	uint8_t data[2] = {0x01, 0x02};
+	Send_Data_SPI(SPI_LORA, data, 2);
+	Send_Data_SPI(SPI_LED, data, 2);
 }
-
-void update_gui(void)
-{
-    send_motor_data_uart(&driver_1);
-    send_motor_data_uart(&driver_2);
-}
-
-
 
 
 

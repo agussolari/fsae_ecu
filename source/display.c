@@ -4,7 +4,7 @@
 
 // Almacena el estado actual de los LEDs para cada tira
 static uint8_t led_state[8] = {0};
-static led_t leds_strip[8][8] = {0};  // Asumiendo que tienes un arreglo de LEDs
+led_t leds_strip[8][8] = {0};  // Asumiendo que tienes un arreglo de LEDs
 
 // Inicializa el MAX7219 y apaga todos los LEDs
 void LEDS_Init(void)

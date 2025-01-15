@@ -35,7 +35,6 @@ void init_drivers(driver_t* driver)
 	driver->state = STATE_RESET_NODE;
 	driver->time_stamp = 0;
 	driver->sensor_time_stamp = 0;
-    driver->last_uart_time = 0;
 
 
 	//Clean data of the PDO and TPDO
@@ -59,10 +58,6 @@ void init_drivers(driver_t* driver)
  * @return void
  */
 void update_state_machine(driver_t* driver) {
-    debounce_button(&start_button, START_GPIO_PORT);
-    debounce_button(&drive_button, DRIVE_GPIO_PORT);
-    debounce_button(&stop_button, STOP_GPIO_PORT);
-
     switch (driver->state) {
         case STATE_RESET_NODE:
             send_nmt_command(0x81, driver->node_id);
@@ -617,15 +612,12 @@ void map_tpdo(uint16_t node_id)
 
 
 
-void send_motor_data_uart(driver_t *driver) {
-	uint32_t current_time = millis();
-	if (current_time - driver->last_uart_time >= 500) {
-		driver->last_uart_time = current_time;
+void send_motor_data_uart(driver_t *driver)
+{
+	char buffer[64];
 
-		char buffer[512];
-
-		// Formatear los datos en un mensaje legible
-		int len = snprintf(buffer, sizeof(buffer),
+	// Formatear los datos en un mensaje legible
+	int len = snprintf(buffer, sizeof(buffer),
 				":%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d:", driver->node_id,
 				driver->state,
 				driver->nmt_state,
@@ -639,9 +631,8 @@ void send_motor_data_uart(driver_t *driver) {
 				driver->tpdo4_data.data.actual_velocity,
 				driver->error_code);
 
-		// Enviar los datos por UART
-		uartWriteMsg(buffer, len);
-	}
+	// Enviar los datos por UART
+	uartWriteMsg(buffer, len);
 }
 
 
@@ -670,13 +661,40 @@ void update_driver_leds(driver_t *driver)
 		gpioWrite(PIN_LED_RED, LOW);
 	}
 //UPDATE ONBOARD LEDS
-	if (driver->nmt_state == NMT_STATE_BOOTUP)
-	{
-
+	if (driver->nmt_state == NMT_STATE_BOOTUP){
+		LEDS_SetLED(&leds_strip[0][0], true);
+	}else if (driver->nmt_state == NMT_STATE_PRE_OPERATIONAL) {
+		LEDS_SetLED(&leds_strip[0][1], true);
+	} else if (driver->nmt_state == NMT_STATE_OPERATIONAL) {
+		LEDS_SetLED(&leds_strip[0][2], true);
+	} else if (driver->nmt_state == NMT_STATE_DRIVE) {
+		LEDS_SetLED(&leds_strip[0][3], true);
+	} else if (driver->nmt_state == NMT_STATE_STOPPED) {
+		LEDS_SetLED(&leds_strip[0][4], true);
 	}
-
+	LEDS_Update();
 
 }
+
+void send_motor_data_lora(driver_t *driver)
+{
+	char buffer[64];
+	// Formatear los datos en un mensaje legible
+	int len = snprintf(buffer, sizeof(buffer),
+			":%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d:", driver->node_id,
+			driver->state, driver->nmt_state, driver->mode,
+			driver->tpdo4_data.data.motor_temperature,
+			driver->tpdo2_data.data.controller_temperature,
+			driver->tpdo3_data.data.motor_current_actual_value,
+			driver->pdo1_data.data.target_torque,
+			driver->tpdo1_data.data.actual_torque,
+			driver->pdo1_data.data.target_velocity,
+			driver->tpdo4_data.data.actual_velocity, driver->error_code);
+
+	// Enviar los datos por LoRa
+	LoRa_Send(buffer, len);
+}
+
 
 
 

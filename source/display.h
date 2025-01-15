@@ -14,6 +14,8 @@ typedef struct {
     uint32_t last_blink_time; // Último tiempo de parpadeo
 } led_t;
 
+extern led_t leds_strip[8][8]; // Asumiendo que tienes un arreglo de LEDs
+
 // Inicializa el MAX7219 y apaga todos los LEDs
 void LEDS_Init(void);
 

@@ -23,17 +23,17 @@ void MAX7219_Init(void)
 	//Usar los 8 dígitos
 	data[0] = MAX7219_REG_SCAN_LIMIT;
 	data[1] = 0x07;
-	Send_Data_SPI(data);
+	Send_Data_SPI(SPI_LED, data, 2);
 
 	// Sin decodificación BCD
 	data[0] = MAX7219_REG_DECODE_MODE;
 	data[1] = 0x00;
-	Send_Data_SPI(data);
+	Send_Data_SPI(SPI_LED, data, 2);
 
 	// Salir del modo shutdown
 	data[0] = MAX7219_REG_SHUTDOWN;
 	data[1] = 0x01;
-	Send_Data_SPI(data);
+	Send_Data_SPI(SPI_LED, data, 2);
 
 	// Limpiar display al inicio
 	MAX7219_ClearDisplay();
@@ -51,7 +51,7 @@ void MAX7219_ClearDisplay(void)
     for (uint8_t i = MAX7219_REG_DIGIT0; i <= MAX7219_REG_DIGIT7; i++)
     {
     	data[0] = i;
-    	Send_Data_SPI(data); // Enviar datos al MAX7219
+    	Send_Data_SPI(SPI_LED, data, 1);
     }
 }
 
@@ -59,14 +59,14 @@ void MAX7219_ClearDisplay(void)
 void MAX7219_SetIntensity(uint8_t intensity) {
 	// Enviar datos al registro de intens
 	uint8_t data[2] = {MAX7219_REG_INTENSITY, intensity & 0x0F};
-	Send_Data_SPI(data); //Rango de intensidad de 0x00 a 0x0F
+	Send_Data_SPI(SPI_LED, data, 2);
 }
 
 // Función para enviar datos al MAX7219
 void MAX7219_SendData(uint8_t reg, uint8_t data)
 {
 	uint8_t frame[2] = {reg, data};
-	Send_Data_SPI(frame); // Enviar datos al MAX7219
+	Send_Data_SPI(SPI_LED, frame, 2);
 }
 
 

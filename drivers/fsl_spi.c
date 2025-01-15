@@ -999,7 +999,11 @@ static void SPI_TransferHandleIRQInternal(SPI_Type *base, spi_master_handle_t *h
  */
 void SPI_MasterTransferHandleIRQ(SPI_Type *base, spi_master_handle_t *handle)
 {
-    assert((NULL != base) && (NULL != handle));
+//    assert((NULL != base) && (NULL != handle));
+	if((NULL == base) || (NULL == handle))
+	{
+		return;
+	}
     size_t txRemainingBytes;
     uint8_t toReceiveCount;
 
@@ -1020,7 +1024,8 @@ void SPI_MasterTransferHandleIRQ(SPI_Type *base, spi_master_handle_t *handle)
     if ((handle->txRemainingBytes != 0U) || (handle->rxRemainingBytes != 0U) || (handle->toReceiveCount != 0))
     {
         /* Transmit or receive data */
-        SPI_TransferHandleIRQInternal(base, handle);
+    	if(NULL != handle)
+    		SPI_TransferHandleIRQInternal(base, handle);
         /* No data to send or read or receive. Transfer ends. Set txTrigger to 0 level and
          * enable txIRQ to confirm when txFIFO becomes empty */
         if ((0U == handle->txRemainingBytes) && (0U == handle->rxRemainingBytes) && (0 == handle->toReceiveCount))

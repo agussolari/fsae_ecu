@@ -2,97 +2,142 @@
 
 
 
-static uint8_t srcBuff[BUFFER_SIZE];
-static uint8_t destBuff[BUFFER_SIZE];
+static spi_instance_t spiInstances[MAX_SPI_INSTANCES];
 
-spi_master_handle_t handle;
-static volatile bool masterFinished = false;
-
-spi_transfer_t xfer = {0};
-spi_master_config_t userConfig;
-uint32_t err     = 0;
-uint32_t i       = 0;
-uint32_t srcFreq = 0;
-
-
-static void masterCallback(SPI_Type *base, spi_master_handle_t *masterHandle, status_t status, void *userData)
-{
-    masterFinished = true;
+static void masterCallback(SPI_Type *base, spi_master_handle_t *masterHandle,
+		status_t status, void *userData) {
+	spi_instance_t *instance = (spi_instance_t*) userData;
+	instance->masterFinished = true;
 }
 
-void Init_SPI(void)
-{
+void Init_SPI(uint8_t instance, SPI_Type *base, uint32_t srcFreq,
+		spi_ssel_t sselNum, spi_spol_t sselPol) {
+	if (instance >= MAX_SPI_INSTANCES)
+		return;
 
+	spi_instance_t *spi = &spiInstances[instance];
+	spi->base = base;
+	spi->masterFinished = false;
 
-    SPI_MasterGetDefaultConfig(&userConfig);
-    srcFreq            = SPI_MASTER_CLK_FREQ;
-    userConfig.sselNum = (spi_ssel_t)SPI_SSEL;
-    userConfig.sselPol = (spi_spol_t)SPI_SPOL;
-    SPI_MasterInit(SPI_MASTER, &userConfig, srcFreq);
-    // Enable SPI interrupt in NVIC
+	spi_master_config_t userConfig;
+	SPI_MasterGetDefaultConfig(&userConfig);
+	userConfig.sselNum = sselNum;
+	userConfig.sselPol = sselPol;
+	SPI_MasterInit(base, &userConfig, srcFreq);
 
-    for (i = 0; i < BUFFER_SIZE; i++) {
-		srcBuff[i] = 0;
-		destBuff[i] = 0;
-    }
+	for (uint32_t i = 0; i < BUFFER_SIZE; i++) {
+		spi->srcBuff[i] = 0;
+		spi->destBuff[i] = 0;
+	}
 
-    xfer.txData = srcBuff;
-    xfer.rxData = destBuff;
-    xfer.dataSize = BUFFER_SIZE;
-    xfer.configFlags = kSPI_FrameAssert;
+	spi->xfer.txData = spi->srcBuff;
+	spi->xfer.rxData = spi->destBuff;
+	spi->xfer.dataSize = BUFFER_SIZE;
+	spi->xfer.configFlags = kSPI_FrameAssert;
 
-    SPI_MasterTransferCreateHandle(SPI_MASTER, &handle, masterCallback, NULL);
-    SPI_MasterTransferNonBlocking(SPI_MASTER, &handle, &xfer);
-
+	SPI_MasterTransferCreateHandle(base, &spi->handle, masterCallback, spi);
+	SPI_MasterTransferNonBlocking(base, &spi->handle, &spi->xfer);
 }
 
-void Send_Data_SPI(uint8_t *data)
-{
-	if (masterFinished == true)
-	{
-		masterFinished = false;
+void Send_Data_SPI(uint8_t instance, uint8_t *data, uint32_t len) {
+	if (instance >= MAX_SPI_INSTANCES)
+		return;
 
-		uint8_t len = sizeof(data)/sizeof(data[0]);
+	spi_instance_t *spi = &spiInstances[instance];
+	if (spi->masterFinished) {
+		spi->masterFinished = false;
 
-		for (i = 0; i < len; i++) {
-			srcBuff[i] = data[i];
-			destBuff[i] = 0;
+		for (uint32_t i = 0; i < len; i++) {
+			spi->srcBuff[i] = data[i];
+			spi->destBuff[i] = 0;
 		}
 
-        xfer.txData = srcBuff;
-        xfer.rxData = destBuff;
-		xfer.dataSize = len;
-		xfer.configFlags = kSPI_FrameAssert;
-		SPI_MasterTransferNonBlocking(SPI_MASTER, &handle, &xfer);
+		spi->xfer.txData = spi->srcBuff;
+		spi->xfer.rxData = spi->destBuff;
+		spi->xfer.dataSize = len;
+		spi->xfer.configFlags = kSPI_FrameAssert;
+		SPI_MasterTransferNonBlocking(spi->base, &spi->handle, &spi->xfer);
 	}
 }
 
-bool isMasterFinished(void) {
-	return masterFinished;
+bool isMasterFinished(uint8_t instance) {
+	if (instance >= MAX_SPI_INSTANCES)
+		return false;
+	return spiInstances[instance].masterFinished;
 }
 
-// EXAMPLE
-// int main(void)
-// {
-//     CLOCK_AttachClk(kFRO12M_to_FLEXCOMM3);
-//     CLOCK_AttachClk(BOARD_DEBUG_UART_CLK_ATTACH);
 
 
-// 	BOARD_InitPins();
-// 	BOARD_BootClockFROHF96M();
-// 	BOARD_InitDebugConsole();
 
-// 	Init_SPI();
-// 	PRINTF("SPI Initialized\n");
-
-// 	uint8_t data[4] = {0x00, 0x01, 0x02, 0x03};
-
-// 	while (1) {
-// 		Send_Data_SPI(data);
-// 		while (isMasterFinished() == false)
-// 			;
-// 		PRINTF("Data sent: %x\n", data);
-// 	}
-
-// 	return 0;
-// }
+//#include "spi.h"
+//
+//
+//
+//static uint8_t srcBuff[BUFFER_SIZE];
+//static uint8_t destBuff[BUFFER_SIZE];
+//
+//spi_master_handle_t handle;
+//static volatile bool masterFinished = false;
+//
+//spi_transfer_t xfer = {0};
+//spi_master_config_t userConfig;
+//uint32_t err     = 0;
+//uint32_t i       = 0;
+//uint32_t srcFreq = 0;
+//
+//
+//static void masterCallback(SPI_Type *base, spi_master_handle_t *masterHandle, status_t status, void *userData)
+//{
+//    masterFinished = true;
+//}
+//
+//void Init_SPI(void)
+//{
+//
+//
+//    SPI_MasterGetDefaultConfig(&userConfig);
+//    srcFreq            = SPI_MASTER_CLK_FREQ;
+//    userConfig.sselNum = (spi_ssel_t)SPI_SSEL;
+//    userConfig.sselPol = (spi_spol_t)SPI_SPOL;
+//    SPI_MasterInit(SPI_MASTER, &userConfig, srcFreq);
+//    // Enable SPI interrupt in NVIC
+//
+//    for (i = 0; i < BUFFER_SIZE; i++) {
+//		srcBuff[i] = 0;
+//		destBuff[i] = 0;
+//    }
+//
+//    xfer.txData = srcBuff;
+//    xfer.rxData = destBuff;
+//    xfer.dataSize = BUFFER_SIZE;
+//    xfer.configFlags = kSPI_FrameAssert;
+//
+//    SPI_MasterTransferCreateHandle(SPI_MASTER, &handle, masterCallback, NULL);
+//    SPI_MasterTransferNonBlocking(SPI_MASTER, &handle, &xfer);
+//
+//}
+//
+//void Send_Data_SPI(uint8_t *data)
+//{
+//	if (masterFinished == true)
+//	{
+//		masterFinished = false;
+//
+//		uint8_t len = sizeof(data)/sizeof(data[0]);
+//
+//		for (i = 0; i < len; i++) {
+//			srcBuff[i] = data[i];
+//			destBuff[i] = 0;
+//		}
+//
+//        xfer.txData = srcBuff;
+//        xfer.rxData = destBuff;
+//		xfer.dataSize = len;
+//		xfer.configFlags = kSPI_FrameAssert;
+//		SPI_MasterTransferNonBlocking(SPI_MASTER, &handle, &xfer);
+//	}
+//}
+//
+//bool isMasterFinished(void) {
+//	return masterFinished;
+//}

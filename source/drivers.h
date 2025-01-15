@@ -17,6 +17,7 @@
 #include "uart.h"
 #include "leds.h"
 #include "display.h"
+#include "lora.h"
 
 #define CAN_BAUDRATE			500000
 #define NODE_ID_1					1
@@ -169,7 +170,6 @@ typedef struct {
     uint16_t error_code;
     uint32_t time_stamp;
     uint32_t sensor_time_stamp;
-    uint32_t last_uart_time;
 
     mode_t mode;
 
@@ -198,6 +198,7 @@ void init_drivers(driver_t* driver);
 void update_state_machine(driver_t* driver);
 void send_motor_data_uart(driver_t* driver);
 void update_driver_leds(driver_t *driver);
+void send_motor_data_lora(driver_t *driver);
 
 
 #endif /* DRIVERS_H_ */
