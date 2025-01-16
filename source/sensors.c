@@ -45,48 +45,13 @@ void init_buttons(void) {
 void run_sensors(void)
 {
 	// Leer el valor del freno y escalarlo a un rango de 0 a 1000
-	sensor_values.brake = (uint16_t)(((float)adcReadChannelBlocking(ADC_CHANNEL_BRAKE)/65535)*1000);
+	sensor_values.brake = (uint16_t)(((float)adcReadChannelBlocking(ADC_CHANNEL_BRAKE)/ADC_MAX_VALUE)*1000);
 
-	sensor_values.direction = (uint16_t)(((float)adcReadChannelBlocking(ADC_CHANNEL_DIRECTION)/65535)*1000);
+	sensor_values.direction = (uint16_t)(((float)adcReadChannelBlocking(ADC_CHANNEL_DIRECTION)/ADC_MAX_VALUE)*1000);
 
-    tps_data.tps1_value = (uint16_t)(((float)adcReadChannelBlocking(ADC_CHANNEL_TPS1)/65535)*1000);
-    tps_data.tps2_value = (uint16_t)(((float)adcReadChannelBlocking(ADC_CHANNEL_TPS2)/65535)*1000);
+    tps_data.tps1_value = (uint16_t)(((float)adcReadChannelBlocking(ADC_CHANNEL_TPS1)/ADC_MAX_VALUE)*3000);
+    tps_data.tps2_value = (uint16_t)(((float)adcReadChannelBlocking(ADC_CHANNEL_TPS2)/ADC_MAX_VALUE)*3000);
 
 }
 
-/************************************
- *       TPS sensor functions		*
- ************************************/
 
-//void read_tps_values() {
-//    tps_data.tps1_value = adc_read(TPS1_ADC_CHANNEL);
-//    tps_data.tps2_value = adc_read(TPS2_ADC_CHANNEL);
-//}
-bool check_implausibility()
-{
-    float tps1_percentage = (float)tps_data.tps1_value / ADC_MAX_VALUE;
-    float tps2_percentage = (float)tps_data.tps2_value / ADC_MAX_VALUE;
-    float deviation = fabs(tps1_percentage - tps2_percentage);
-
-    return deviation > IMPLAUSIBILITY_THRESHOLD;
-}
-void handle_implausibility() {
-    if (check_implausibility()) {
-        if (!tps_data.implausibility_detected) {
-            tps_data.implausibility_detected = true;
-            tps_data.implausibility_start_time = millis();
-        } else if (millis() - tps_data.implausibility_start_time > IMPLAUSIBILITY_TIME_MS) {
-            stop_motor();
-        }
-    } else {
-        tps_data.implausibility_detected = false;
-    }
-}
-
-void stop_motor()
-{
-    // Implement motor stop logic here
-    // For example, send a command to the motor controller to stop the motor
-
-    PRINTF("Motor stopped\n");
-}

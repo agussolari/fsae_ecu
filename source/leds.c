@@ -19,27 +19,36 @@ void init_leds(void)
 	gpioWrite(PIN_LED_GREEN, HIGH);
 	gpioWrite(PIN_LED_BLUE, HIGH);
 
-	// Initialize the CTIMER
-	millis_init();
 }
 
-void blink_led(pin_t pin)
+void update_leds(state_t state)
 {
-    static uint32_t lastToggleTime = 0;
-    static bool ledState = false;
+	// Turn off the LEDs
+	gpioWrite(PIN_LED_RED, HIGH);
+	gpioWrite(PIN_LED_GREEN, HIGH);
+	gpioWrite(PIN_LED_BLUE, HIGH);
 
-    // Get the current time
-    uint32_t currentTime = millis();
+	// Update the LEDs based on the NMT state
+	if (state == BOOTUP) {
+		gpioWrite(PIN_LED_RED, LOW);
 
-    // If 500ms have passed since the last toggle
-    if ((currentTime - lastToggleTime) >= 1000 ) {
-        // Toggle the LED
-        ledState = !ledState;
-        gpioWrite(pin, ledState);
+	} else if (state == PRE_OPERATIONAL) {
+		gpioWrite(PIN_LED_RED, LOW);
+		gpioWrite(PIN_LED_GREEN, LOW);
 
-        // Update the last toggle time
-        lastToggleTime = currentTime;
-    }
+	} else if (state == OPERATIONAL) {
+		gpioWrite(PIN_LED_GREEN, LOW);
+
+	} else if (state == DRIVE) {
+		gpioWrite(PIN_LED_BLUE, LOW);
+
+	} else if (state == STOPPED) {
+		gpioWrite(PIN_LED_BLUE, LOW);
+		gpioWrite(PIN_LED_RED, LOW);
+
+	}
 }
+
+
 
 

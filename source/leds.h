@@ -9,11 +9,18 @@
 #define LEDS_H_
 
 #include "gpio.h"
-#include "millis.h"
+
+typedef enum {
+	BOOTUP,
+	PRE_OPERATIONAL,
+	OPERATIONAL,
+	DRIVE,
+	STOPPED,
+} state_t;
 
 
 
 void init_leds(void);
-void blink_led(pin_t pin);
+void update_leds(state_t state);
 
 #endif /* LEDS_H_ */

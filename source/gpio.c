@@ -71,9 +71,6 @@ static const uint32_t pio_config[GPIO_CANT_MODES] =
 
 static bool cg_iocon;
 
-debounce_t start_button = {0, false, false};
-debounce_t drive_button = {0, false, false};
-debounce_t stop_button = {0, false, false};
 
 /*******************************************************************************
  *******************************************************************************
@@ -130,18 +127,6 @@ bool gpioRead (pin_t pin)
 
 
 
-
-
-void debounce_button(debounce_t* button, uint8_t port) {
-    bool current_state = gpioRead(port);
-    if (current_state != button->last_button_state) {
-        button->last_debounce_time = millis();
-    }
-    if ((millis() - button->last_debounce_time) > DEBOUNCE_DELAY_MS) {
-        button->button_state = current_state;
-    }
-    button->last_button_state = current_state;
-}
 
 
 /*******************************************************************************

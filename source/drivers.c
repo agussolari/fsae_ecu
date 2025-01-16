@@ -58,6 +58,7 @@ void init_drivers(driver_t* driver)
  * @return void
  */
 void update_state_machine(driver_t* driver) {
+
     switch (driver->state) {
         case STATE_RESET_NODE:
             send_nmt_command(0x81, driver->node_id);
@@ -76,11 +77,11 @@ void update_state_machine(driver_t* driver) {
                 driver->state = STATE_INITIALIZATION;
                 break;
             }
-//            if (stop_button.last_button_state) {
-//                driver->state = STATE_RESET_NODE;
-//                break;
-//
-//            }
+            if (gpioRead(STOP_GPIO_PORT)) {
+                driver->state = STATE_RESET_NODE;
+                break;
+
+            }
             break;
 
         case STATE_INITIALIZATION:
@@ -90,21 +91,15 @@ void update_state_machine(driver_t* driver) {
             driver->state = STATE_WAIT_START;
             PRINTF("Initialization Mode\n");
 
-//            map_rpdo(driver->node_id);
-//            map_tpdo(driver->node_id);
-
             break;
 
         case STATE_WAIT_START:
-            if (start_button.last_button_state)
+            if (gpioRead(START_GPIO_PORT))
             {
             	PRINTF("Start Mode\n");
                 driver->state = STATE_START;
                 break;
-
-//                PRINTF("Start Mode\n");
             }
-//            PRINTF("TEST\n");
             break;
 
         case STATE_START:
@@ -162,12 +157,7 @@ void update_state_machine(driver_t* driver) {
 
                 driver->state = STATE_WAIT_DRIVE;
             }
-            else if (start_button.last_button_state)
-            {
-                driver->state = STATE_WAIT_START;
-                break;
-            }
-            else if (stop_button.last_button_state)
+            else if (gpioRead(STOP_GPIO_PORT))
             {
                 driver->state = STATE_STOPPED;
                 break;
@@ -178,7 +168,7 @@ void update_state_machine(driver_t* driver) {
 
 
         case STATE_WAIT_DRIVE:
-            if (drive_button.last_button_state) {
+            if (gpioRead(DRIVE_GPIO_PORT)) {
                 PRINTF("Drive Mode\n");
                 send_controlword(0x06, driver->node_id);
                 send_controlword(0x07, driver->node_id);
@@ -186,20 +176,18 @@ void update_state_machine(driver_t* driver) {
                 driver->state = STATE_DRIVE;
                 driver->nmt_state = NMT_STATE_DRIVE;
             }
-            if (start_button.last_button_state) {
-                driver->state = STATE_WAIT_START;
+            if (gpioRead(START_GPIO_PORT)) {
+                driver->state = STATE_START;
             }
-            if (stop_button.last_button_state) {
+            if (gpioRead(STOP_GPIO_PORT)) {
                 driver->state = STATE_STOPPED;
             }
             break;
 
         case STATE_DRIVE:
-            run_sensors();
             run_motors(driver);
-            handle_errors();
 
-            if (stop_button.last_button_state) {
+            if (gpioRead(STOP_GPIO_PORT)) {
                 driver->state = STATE_STOPPED;
             }
 
@@ -214,11 +202,6 @@ void update_state_machine(driver_t* driver) {
     }
 }
 
-
-void handle_errors()
-{
-	handle_implausibility(); // Check for implausibility of TPS sensors
-}
 
 
 
@@ -269,13 +252,8 @@ bool check_alignment_status(driver_t* driver)
  */
 void run_motors (driver_t* driver)
 {
-
-
-	recive_pdo_message(driver);	//Receive PDO message
-
+	recive_pdo_message(driver);		//Receive PDO message
 	send_pdo_message(driver);		//Send PDO message
-
-
 }
 
 
@@ -322,19 +300,16 @@ void recive_pdo_message(driver_t* driver)
 
 		if (rx_msg.id == (TPDO1_ID + driver->node_id ))
 		{
-//			PRINTF("TPDO1 received\n");
 			for (int i = 0; i < 8; i++)
 				driver->tpdo1_data.b[i] = rx_msg.data[i];
 		}
 		if ( rx_msg.id == (TPDO2_ID + driver->node_id ))
 		{
-//			PRINTF("TPDO2 received\n");
 			for (int i = 0; i < 8; i++)
 				driver->tpdo2_data.b[i] = rx_msg.data[i];
 		}
 		if ( rx_msg.id == (TPDO3_ID + driver->node_id ))
 		{
-//			PRINTF("TPDO3 received\n");
 			for (int i = 0; i < 8; i++)
 				driver->tpdo3_data.b[i] = rx_msg.data[i];
 		}
@@ -495,122 +470,6 @@ bool send_sdo_mode_of_operation(int8_t mode, uint16_t node_id)
 
 }
 
-/**
- * @brief Map RPDO
- * void map_rpdo(void)
- *
- * @return void
- */
-void map_rpdo(uint16_t node_id)
-{
-    // Disable PDO communication
-    send_sdo_write_command(0x23, 0x1800, 0x01, 0x80000000, node_id);
-
-    // Disable PDO mapping
-    send_sdo_write_command(0x2B, 0x1A00, 0x00, 0x00, node_id);
-
-    // Map RPDO
-    // b[0], b[1]: Control word (0x6040, 0x00)
-    // b[2], b[3], b[4], b[5]: Target velocity 0x60FF, 0x00
-    // b[6], b[7]: Target torque 0x6071, 0x00
-
-
-    //Map number of entry: 3 entry
-    send_sdo_write_command(0x27, 0x1600, 0x00, 0x03, node_id);
-
-    //Map Control Word: 0x6040, 0x00 (2 bytes)
-    send_sdo_write_command(0x23, 0x1600, 0x01, 0x60400010, node_id);
-    //Mpa Target velocity: 0x60FF, 0x00 (4 bytes)
-    send_sdo_write_command(0x23, 0x1600, 0x02, 0x60FF0020, node_id);
-    //Map Target torque: 0x6071, 0x00 (2 bytes)
-    send_sdo_write_command(0x23, 0x1600, 0x03, 0x60710010, node_id);
-
-
-
-    //Set transmission type to aynchronous
-    send_sdo_write_command(0x2B, 0x1400, 0x02, 0xFE, node_id);
-
-    //Set COB-ID to 0x200 + node_id
-    send_sdo_write_command(0x2B, 0x1400, 0x01, RPDO1_ID + node_id, node_id);
-
-    //Save parameters
-    send_sdo_write_command(0x23, 0x1010, 0x01, SAVE_PARAM, node_id);
-
-    //Reset node
-    send_nmt_command(0x81, node_id);
-
-}
-
-
-
-/**
- * @brief Map TPDO
- * void map_tpdo(void)
- *
- * @return void
- */
-void map_tpdo(uint16_t node_id)
-{
-	// Disable PDO communication
-	send_sdo_write_command(0x2B, 0x1800, 0x01, 0x80000000, node_id);
-
-	// Disable PDO mapping
-	send_sdo_write_command(0x2B, 0x1A00, 0x00, 0x00, node_id);
-
-	// Map TPDO1
-	// b[0], b[1]: Status word (0x6041, 0x00)
-	// b[2], b[3], b[4], b[5]: Actual velocity 0x606C, 0x00
-	// b[6], b[7]: Actual torque 0x6077, 0x00
-
-	//Map number of entry: 3 entry
-	send_sdo_write_command(0x27, 0x1A00, 0x00, 0x03, node_id);
-
-	//Map Status Word: 0x6041, 0x00 (2 bytes)
-	send_sdo_write_command(0x23, 0x1A00, 0x01, 0x60410010, node_id);
-	//Map Actual velocity: 0x606C, 0x00 (4 bytes)
-	send_sdo_write_command(0x23, 0x1A00, 0x02, 0x606C0020, node_id);
-	//Map Actual torque: 0x6077, 0x00 (2 bytes)
-	send_sdo_write_command(0x23, 0x1A00, 0x03, 0x60770010, node_id);
-
-	//Set transmission type to sync
-	send_sdo_write_command(0x2B, 0x1800, 0x02, 0x01, node_id);
-
-	//Set COB-ID to 0x180 + node_id
-	send_sdo_write_command(0x2B, 0x1800, 0x01, TPDO1_ID + node_id, node_id);
-
-	//Map TPDO2
-	// b[0], b[1], b[2], b[3]: Actual velocity value 0x606C, 0x00
-	// b[4]: Controller temperature 0x2026, 0x01
-	// b[5]: Motor temperature 0x2027, 0x01
-	// b[6], b[7]: Actual motor current 0x6078, 0x02
-
-	//Map number of entry: 2 entry
-	send_sdo_write_command(0x2F, 0x1A01, 0x00, 0x04, node_id);
-
-	//Map Actual velocity value: 0x606C, 0x00 (4 bytes)
-	send_sdo_write_command(0x23, 0x1A01, 0x01, 0x606C0020, node_id);
-	//Map Controller temperature: 0x2026, 0x01 (1 byte)
-	send_sdo_write_command(0x23, 0x1A01, 0x02, 0x20260108, node_id);
-	//Map Motor temperature: 0x2027, 0x01 (1 byte)
-	send_sdo_write_command(0x23, 0x1A01, 0x03, 0x20250108, node_id);
-	//Map Actual motor current: 0x6078, 0x02 (2 bytes)
-	send_sdo_write_command(0x23, 0x1A01, 0x04, 0x60780210, node_id);
-
-	//Set transmission type to sync
-	send_sdo_write_command(0x2B, 0x1801, 0x02, 0x01, node_id);
-
-	//Set COB-ID to 0x280 + node_id
-	send_sdo_write_command(0x2B, 0x1801, 0x01, TPDO2_ID + node_id, node_id);
-
-	//Save parameters
-	send_sdo_write_command(0x23, 0x1010, 0x01, SAVE_PARAM, node_id);
-
-	//Reset node
-	send_nmt_command(0x81, node_id);
-
-}
-
-
 
 void send_motor_data_uart(driver_t *driver)
 {
@@ -636,64 +495,6 @@ void send_motor_data_uart(driver_t *driver)
 }
 
 
-void update_driver_leds(driver_t *driver)
-{
-//UPDATE ECU LEDS
-	// Update the LEDs based on the NMT state
-	if (driver->nmt_state == NMT_STATE_BOOTUP) {
-		blink_led(PIN_LED_RED);
-
-	} else if (driver->nmt_state == NMT_STATE_PRE_OPERATIONAL) {
-		gpioWrite(PIN_LED_RED, LOW);
-
-	} else if (driver->nmt_state == NMT_STATE_OPERATIONAL) {
-		gpioWrite(PIN_LED_GREEN, LOW);
-
-	} else if (driver->nmt_state == NMT_STATE_DRIVE) {
-		blink_led(PIN_LED_GREEN);
-
-	} else if (driver->nmt_state == NMT_STATE_STOPPED) {
-		blink_led(PIN_LED_BLUE);
-
-	} else {
-		gpioWrite(PIN_LED_GREEN, LOW);
-		gpioWrite(PIN_LED_RED, LOW);
-		gpioWrite(PIN_LED_RED, LOW);
-	}
-//UPDATE ONBOARD LEDS
-	if (driver->nmt_state == NMT_STATE_BOOTUP){
-		LEDS_SetLED(&leds_strip[0][0], true);
-	}else if (driver->nmt_state == NMT_STATE_PRE_OPERATIONAL) {
-		LEDS_SetLED(&leds_strip[0][1], true);
-	} else if (driver->nmt_state == NMT_STATE_OPERATIONAL) {
-		LEDS_SetLED(&leds_strip[0][2], true);
-	} else if (driver->nmt_state == NMT_STATE_DRIVE) {
-		LEDS_SetLED(&leds_strip[0][3], true);
-	} else if (driver->nmt_state == NMT_STATE_STOPPED) {
-		LEDS_SetLED(&leds_strip[0][4], true);
-	}
-	LEDS_Update();
-
-}
-
-void send_motor_data_lora(driver_t *driver)
-{
-	char buffer[64];
-	// Formatear los datos en un mensaje legible
-	int len = snprintf(buffer, sizeof(buffer),
-			":%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d:", driver->node_id,
-			driver->state, driver->nmt_state, driver->mode,
-			driver->tpdo4_data.data.motor_temperature,
-			driver->tpdo2_data.data.controller_temperature,
-			driver->tpdo3_data.data.motor_current_actual_value,
-			driver->pdo1_data.data.target_torque,
-			driver->tpdo1_data.data.actual_torque,
-			driver->pdo1_data.data.target_velocity,
-			driver->tpdo4_data.data.actual_velocity, driver->error_code);
-
-	// Enviar los datos por LoRa
-	LoRa_Send(buffer, len);
-}
 
 
 

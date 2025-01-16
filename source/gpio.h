@@ -62,15 +62,6 @@
 
 typedef uint16_t pin_t;
 
-typedef struct {
-    uint32_t last_debounce_time;
-    bool last_button_state;
-    bool button_state;
-} debounce_t;
-
-extern debounce_t start_button;
-extern debounce_t drive_button;
-extern debounce_t stop_button;
 /*******************************************************************************
  * VARIABLE PROTOTYPES WITH GLOBAL SCOPE
  ******************************************************************************/
@@ -106,9 +97,6 @@ void gpioToggle (pin_t pin);
  */
 bool gpioRead (pin_t pin);
 
-
-void debounce_button(debounce_t* button, uint8_t port);
-bool read_button(uint8_t port);
 
 
 

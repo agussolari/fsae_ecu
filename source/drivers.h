@@ -16,8 +16,7 @@
 #include "millis.h"
 #include "uart.h"
 #include "leds.h"
-#include "display.h"
-#include "lora.h"
+
 
 #define CAN_BAUDRATE			500000
 #define NODE_ID_1					1
@@ -34,9 +33,9 @@
 #define TPDO3_ID 				(0x380)
 #define TPDO4_ID 				(0x480)
 
-#define START_GPIO_PORT 		PORTNUM2PIN(0, 28)
-#define DRIVE_GPIO_PORT 		PORTNUM2PIN(0, 24)
-#define STOP_GPIO_PORT 			PORTNUM2PIN(0, 13)
+#define START_GPIO_PORT 		PORTNUM2PIN(1, 23)
+#define DRIVE_GPIO_PORT 		PORTNUM2PIN(0, 0)
+#define STOP_GPIO_PORT 			PORTNUM2PIN(0, 9)
 
 
 #define SAVE_PARAM 				(uint32_t)(0x65766173)
@@ -197,8 +196,6 @@ typedef struct {
 void init_drivers(driver_t* driver);
 void update_state_machine(driver_t* driver);
 void send_motor_data_uart(driver_t* driver);
-void update_driver_leds(driver_t *driver);
-void send_motor_data_lora(driver_t *driver);
 
 
 #endif /* DRIVERS_H_ */
