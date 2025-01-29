@@ -35,7 +35,6 @@
 
 typedef struct {
     uint16_t id : 11; // 11 bits for CAN ID
-    uint8_t rtr : 1; // 1 bit for RTR
     uint8_t len : 4; // 4 bits for Data Length
     uint8_t data[8]; // 0 - 8 bytes for Data
 } can_msg_t;

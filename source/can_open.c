@@ -27,27 +27,25 @@
 
 bool send_sdo_write_command (uint8_t command, uint16_t od_index, uint8_t od_sub_index, int32_t data, uint16_t node_id)
 {
-	if(can_isTxReady())
-	{
-		can_msg_t sdo_msg;
-		sdo_msg.id = 0x600 + node_id;  // COB-ID del SDO
-		sdo_msg.rtr = 0;
-		sdo_msg.len = 8;
+	can_msg_t sdo_msg;
+	sdo_msg.id = 0x600 + node_id;  // COB-ID del SDO
+	sdo_msg.len = 8;
 
-		sdo_msg.data[0] = command;  // Comando SDO
-		sdo_msg.data[1] = (uint8_t)(od_index & 0x00FF);  // Índice bajo
-		sdo_msg.data[2] = (uint8_t)((od_index >> 8) & 0x00FF);   // Índice alto
-		sdo_msg.data[3] = od_sub_index;     // Subíndice
-		sdo_msg.data[4] = (uint8_t)(data & 0x000000FF);      // Byte 0 del valor
-		sdo_msg.data[5] = (uint8_t)((data >> 8) & 0x000000FF);  // Byte 1 del valor
-		sdo_msg.data[6] = (uint8_t)((data >> 16) & 0x000000FF); // Byte 2 del valor
-		sdo_msg.data[7] = (uint8_t)((data >> 24) & 0x000000FF); // Byte 3 del valor
+	sdo_msg.data[0] = command;  // Comando SDO
+	sdo_msg.data[1] = (uint8_t)(od_index & 0x00FF);  // Índice bajo
+	sdo_msg.data[2] = (uint8_t)((od_index >> 8) & 0x00FF);   // Índice alto
+	sdo_msg.data[3] = od_sub_index;     // Subíndice
+	sdo_msg.data[4] = (uint8_t)(data & 0x000000FF);      // Byte 0 del valor
+	sdo_msg.data[5] = (uint8_t)((data >> 8) & 0x000000FF);  // Byte 1 del valor
+	sdo_msg.data[6] = (uint8_t)((data >> 16) & 0x000000FF); // Byte 2 del valor
+	sdo_msg.data[7] = (uint8_t)((data >> 24) & 0x000000FF); // Byte 3 del valor
 
-//		while(!can_isTxReady());
-		bool flag = can_sendTxMsg(&sdo_msg);
+    while (!can_isTxReady())
+    {
+        // Wait until Tx is ready
+    }
 
-		return flag;
-	}
+	return can_sendTxMsg(&sdo_msg);
 }
 
 
@@ -66,15 +64,10 @@ bool recive_sdo_write_command(uint8_t command, uint16_t od_index, uint8_t od_sub
 	{
 		if (can_readRxMsg(&sdo_reply) && sdo_reply.id == (0x580 + node_id))
 		{
-			if (	   (sdo_reply.data[0] == 0x60) //Command for response
-					&& (sdo_reply.rtr == 0)
-					&& (sdo_reply.data[1] == (uint8_t) (od_index & 0x00FF))
-					&& (sdo_reply.data[2] == (uint8_t) ((od_index >> 8) & 0x00FF))
-					&& (sdo_reply.data[3] == od_sub_index)
-					&& (sdo_reply.data[4] == (uint8_t)(0x00))
-					&& (sdo_reply.data[5] == (uint8_t)(0x00))
-					&& (sdo_reply.data[6] == (uint8_t)(0x00))
-					&& (sdo_reply.data[7] == (uint8_t)(0x00)))
+			if(( sdo_reply.data[0] == 0x60) //Command for response
+			&& ( sdo_reply.data[1] == (uint8_t) (od_index & 0x00FF))
+			&& ( sdo_reply.data[2] == (uint8_t) ((od_index >> 8) & 0x00FF))
+			&& ( sdo_reply.data[3] == od_sub_index))
 			{
 
 				return true;
@@ -99,7 +92,6 @@ bool send_sdo_read_command(uint16_t od_index, uint8_t od_sub_index, uint16_t nod
 {
 	can_msg_t sdo_msg;
 	sdo_msg.id = 0x600 + node_id;  // COB-ID del SDO
-	sdo_msg.rtr = 0;
 	sdo_msg.len = 8;
 
 	sdo_msg.data[0] = 0x40;  // Comando SDO
@@ -112,10 +104,12 @@ bool send_sdo_read_command(uint16_t od_index, uint8_t od_sub_index, uint16_t nod
 	sdo_msg.data[7] = 0x00; // Byte 3 del valor
 
 
-//	while(!can_isTxReady());
-	bool flag = can_sendTxMsg(&sdo_msg);
+    while (!can_isTxReady())
+    {
+        // Wait until Tx is ready
+    }
 
-	return flag;
+	return can_sendTxMsg(&sdo_msg);
 }
 
 /**
@@ -134,13 +128,14 @@ int32_t recive_sdo_read_command(uint8_t command, uint16_t od_index, uint8_t od_s
 {
 	can_msg_t sdo_reply;
 
-	if (can_isNewRxMsg()) {
-		if (can_readRxMsg(&sdo_reply) && sdo_reply.id == (0x580 + node_id))
+	if (can_isNewRxMsg())
+	{
+		can_readRxMsg(&sdo_reply);
+		if (sdo_reply.id == (0x580 + node_id))
 		{
-			if (       (sdo_reply.rtr == 0)
-					&& (sdo_reply.data[1] == (uint8_t) (od_index & 0x00FF))
-					&& (sdo_reply.data[2] == (uint8_t) ((od_index >> 8) & 0x00FF))
-					&& (sdo_reply.data[3] == od_sub_index) )
+			if((sdo_reply.data[1] == (uint8_t) (od_index & 0x00FF))
+			&& (sdo_reply.data[2] == (uint8_t) ((od_index >> 8) & 0x00FF))
+			&& (sdo_reply.data[3] == od_sub_index))
 			{
 				if((sdo_reply.data[0] == 0x43) || (sdo_reply.data[0] == 0x47) || (sdo_reply.data[0] == 0x4B) || (sdo_reply.data[0] == 0x4F))
 					return  (int32_t)(sdo_reply.data[4] | (sdo_reply.data[5] << 8) | (sdo_reply.data[6] << 16) | (sdo_reply.data[7] << 24));
@@ -164,17 +159,38 @@ int32_t recive_sdo_read_command(uint8_t command, uint16_t od_index, uint8_t od_s
  * @param node_id Node ID of the slave
  * @return void
  */
-void send_nmt_command(uint8_t command, uint16_t node_id) {
-    can_msg_t nmt_msg;
-    nmt_msg.id = 0x000;  // COB-ID para NMT
-    nmt_msg.rtr = 0;
-    nmt_msg.len = 2;
-    nmt_msg.data[0] = command;  // Comando NMT (0x01 para Operational, 0x80 para Pre-operational)
-    nmt_msg.data[1] = (uint8_t)node_id;  // Node ID del esclavo
+#include "millis.h"
 
-    if(can_isTxReady())
-    {
-//    	PRINTF("Sending NMT command\n");
-    	can_sendTxMsg(&nmt_msg);
-    }
+void send_nmt_command(uint8_t command, uint16_t node_id) {
+	can_msg_t nmt_msg;
+	nmt_msg.id = 0x000;  // COB-ID for NMT
+	nmt_msg.len = 2;
+	nmt_msg.data[0] = command; // NMT command (0x01 for Operational, 0x80 for Pre-operational)
+	nmt_msg.data[1] = (uint8_t) node_id;  // Node ID of the slave
+
+//	bool state = can_isTxReady();
+//	while (!state)
+//	{
+//		state = can_isTxReady();
+//		delay(500);
+//		// Wait until Tx is ready
+//		PRINTF("Waiting for Tx ready\n");
+//	}
+	while(!can_isTxReady())
+	{
+		PRINTF("Waiting for Tx ready\n");
+
+	}
+    PRINTF("Sending NMT command\n");
+    bool state = can_sendTxMsg(&nmt_msg);
+	if (state)
+	{
+		PRINTF("NMT command sent\n");
+	}
+	else
+	{
+		PRINTF("NMT command failed\n");
+	}
+
 }
+

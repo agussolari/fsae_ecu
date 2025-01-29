@@ -45,6 +45,7 @@ driver_t driver_2;
 int main(void)
 {
 	/* Init board hardware. */
+
 	BOARD_InitPins();
 	BOARD_BootClockFROHF96M();
 	SystemCoreClockUpdate();
@@ -71,12 +72,17 @@ int main(void)
 	//Initialice periodic interrupt for uart and led control and lora
 	SysTick_RegisterCallback(update_data, 1000);
 	SysTick_RegisterCallback(update_driver_leds, 1000);
-	SysTick_RegisterCallback(run_sensors, 500);
+//	SysTick_RegisterCallback(run_sensors, 50);
 
 	PRINTF("Init complete\n");
 
     while (1)
     {
+    	//PRINTF TPS
+//    	run_sensors();
+//    	PRINTF("TPS2: %d\n", tps_data.tps2_value);
+//    	PRINTF("TPS1: %d\n", tps_data.tps1_value);
+
         update_state_machine(&driver_1);
         update_state_machine(&driver_2);
 
