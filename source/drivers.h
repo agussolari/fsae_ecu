@@ -67,6 +67,7 @@ typedef enum {
 typedef enum {
 	ERROR_NONE,
 	ERROR_GENERIC,
+	ERROR_IMPLAUSIBILITY,
 	ERROR_CURRENT,
 	ERROR_VOLTAGE,
 	ERROR_TEMPERATURE,
@@ -166,7 +167,7 @@ typedef struct {
     uint16_t node_id;
     driver_state_t state;
     nmt_state_t nmt_state;
-    uint16_t error_code;
+    nmt_error_t error_code;
     uint32_t time_stamp;
     uint32_t sensor_time_stamp;
 

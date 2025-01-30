@@ -27,11 +27,14 @@
 
 #define SENSOR_READ_INTERVAL 100 // Intervalo de lectura de los sensores en ms
 
+#define IMPLAUSIBILITY_THRESHOLD 0.10f // 10% threshold
+#define IMPLAUSIBILITY_TIME_MS 100
 
 
 void init_sensor(void);
 void init_buttons(void);
 void run_sensors(void);
+bool handle_implausibility();
 
 
 typedef struct {

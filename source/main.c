@@ -72,7 +72,6 @@ int main(void)
 	//Initialice periodic interrupt for uart and led control and lora
 	SysTick_RegisterCallback(update_data, 1000);
 	SysTick_RegisterCallback(update_driver_leds, 1000);
-//	SysTick_RegisterCallback(run_sensors, 50);
 
 	PRINTF("Init complete\n");
 

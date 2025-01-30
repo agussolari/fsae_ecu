@@ -21,7 +21,7 @@ bool send_sdo_mode_of_operation(int8_t mode, uint16_t node_id);
 
 bool check_alignment_status(driver_t* driver);
 void align_motors(uint16_t node_id);
-void handle_errors(void);
+void handle_errors(driver_t* driver);
 
 /**
  * @brief Initialize the drivers
@@ -257,12 +257,21 @@ bool check_alignment_status(driver_t* driver)
  */
 void run_motors (driver_t* driver)
 {
-	run_sensors();
+	run_sensors();	           		//Run sensors
 	recive_pdo_message(driver);		//Receive PDO message
 	send_pdo_message(driver);		//Send PDO message
-//	PRINTF("TPS1: %d\n", tps_data.tps1_value);
+	handle_errors(driver);				//Handle errors
 }
 
+
+void handle_errors(driver_t* driver)
+{
+	if(handle_implausibility()) // Check for implausibility of TPS sensors
+	{
+		driver->error_code = ERROR_IMPLAUSIBILITY;
+		driver->state = STATE_STOPPED;
+	}
+}
 
 
 
@@ -306,18 +315,14 @@ void recive_pdo_message(driver_t* driver)
 
 
 void send_pdo_message(driver_t *driver) {
-	const int32_t throttle_threshold = 5; // Define a suitable threshold
-	const int32_t torque_threshold = 5; // Define a suitable threshold
+	const int32_t throttle_threshold = 5; // Define a suitable threshold to handle noise
 
 	int32_t current_throttle = 0;
 	int32_t current_torque = 0;
 
-	if (driver->node_id == NODE_ID_1)
-	{
-		current_throttle =(int32_t) (tps_data.tps1_value);
-	}
-	else if (driver->node_id == NODE_ID_2)
-	{
+	if (driver->node_id == NODE_ID_1) {
+		current_throttle = (int32_t) (tps_data.tps1_value);
+	} else if (driver->node_id == NODE_ID_2) {
 		current_throttle = -(int32_t) (tps_data.tps1_value);
 	}
 
@@ -325,13 +330,9 @@ void send_pdo_message(driver_t *driver) {
 	driver->pdo1_data.data.target_velocity = current_throttle;
 	driver->pdo1_data.data.target_torque = current_torque;
 
-	bool values_changed = (abs(current_throttle - driver->prev_throttle)
-			> throttle_threshold
-			|| abs(current_torque - driver->prev_torque) > torque_threshold);
+	bool is_accelerating = (current_throttle - driver->prev_throttle) > throttle_threshold;
 
-	uint32_t interval = values_changed ? 10 : 100;
-
-	if (millis() - driver->sensor_time_stamp >= interval) {
+	if (is_accelerating) {
 		can_msg_t pdo_msg;
 		pdo_msg.id = RPDO1_ID + driver->node_id;
 		pdo_msg.len = 8;
@@ -349,7 +350,6 @@ void send_pdo_message(driver_t *driver) {
 
 		if (can_isTxReady()) {
 			can_sendTxMsg(&pdo_msg);
-//			PRINTF("%d %d\n", current_throttle, current_torque);
 			driver->sensor_time_stamp = millis(); // Update the timestamp
 		}
 
@@ -429,8 +429,6 @@ bool send_sdo_mode_of_operation(int8_t mode, uint16_t node_id)
 		//Wait for controller response
 		while(!recive_sdo_write_command(0x60, 0x1010, 0x01, 0x00000000, node_id))
 		{
-			//Use NMT command to Reset Node
-//			send_nmt_command(0x81, node_id); //Reset Node command
 			return 1;
 
 		}
