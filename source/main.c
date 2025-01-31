@@ -40,59 +40,12 @@ void update_driver_leds(void);
 driver_t driver_1;
 driver_t driver_2;
 
-void test(driver_t* driver)
-{
-    const int32_t throttle_threshold = 5; // Define un umbral adecuado
-    int32_t current_throttle = (int32_t)tps_data.tps1_value;
-
-
-
-    int32_t error_throttle = current_throttle - driver->prev_throttle;
-
-    // Determina el estado del movimiento
-    if (error_throttle > throttle_threshold) {
-        driver->moving_state = STATE_ACCELERATING;
-    } else if (error_throttle < -throttle_threshold) {
-        driver->moving_state = STATE_DECELERATING;
-    } else {
-        driver->moving_state = STATE_IDLE;
-    }
-
-    // Control de LEDs según el estado
-    switch (driver->moving_state)
-    {
-    case STATE_ACCELERATING:
-    	PRINTF("ACCELERATING\n");
-        gpioWrite(PIN_LED_RED, LOW);
-        gpioWrite(PIN_LED_GREEN, HIGH);
-        gpioWrite(PIN_LED_BLUE, HIGH);
-        break;
-
-    case STATE_DECELERATING:
-    	PRINTF("DECELERATING\n");
-        gpioWrite(PIN_LED_RED, HIGH);
-        gpioWrite(PIN_LED_GREEN, LOW);
-        gpioWrite(PIN_LED_BLUE, HIGH);
-        break;
-
-    case STATE_IDLE:
-    	PRINTF("IDLE\n");
-        gpioWrite(PIN_LED_RED, HIGH);
-        gpioWrite(PIN_LED_GREEN, HIGH);
-        gpioWrite(PIN_LED_BLUE, LOW);
-        break;
-    }
-
-    // Actualiza el valor previo del throttle
-    driver->prev_throttle = current_throttle;
-}
-
-
 
 
 int main(void)
 {
 	/* Init board hardware. */
+
 
 	BOARD_InitPins();
 	BOARD_BootClockFROHF96M();
@@ -103,10 +56,10 @@ int main(void)
 	can_init(CAN_BAUDRATE);
 	init_buttons();
 	init_sensor();
-//	uartInit();
+	uartInit();
 	init_leds();
 
-//	SysTick_Init();
+	SysTick_Init();
 
 
 	//Init drivers
@@ -117,21 +70,35 @@ int main(void)
 	init_drivers(&driver_1);
 	init_drivers(&driver_2);
 
+	//Initialice periodic interrupt for uart and led control and lora
+	SysTick_RegisterCallback(update_data, 1000);
+	SysTick_RegisterCallback(update_driver_leds, 1000);
+//	SysTick_RegisterCallback(run_sensors, 100);
 
-//	SysTick_RegisterCallback(run_sensors, 50);
+
 	PRINTF("Init complete\n");
 
     while (1)
     {
 
-        update_state_machine(&driver_1);
-        update_state_machine(&driver_2);
-
+       update_state_machine(&driver_1);
+       update_state_machine(&driver_2);
 
     }
 }
 
 
+
+
+void update_data(void)
+{
+	send_motor_data_uart(&driver_1);
+	send_motor_data_uart(&driver_2);
+}
+
+void update_driver_leds(void) {
+	update_leds(driver_1.nmt_state);
+}
 
 
 

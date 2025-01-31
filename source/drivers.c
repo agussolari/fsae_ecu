@@ -21,8 +21,7 @@ bool send_sdo_mode_of_operation(int8_t mode, uint16_t node_id);
 
 bool check_alignment_status(driver_t* driver);
 void align_motors(uint16_t node_id);
-void handle_errors(driver_t* driver);
-
+void handle_errors(void);
 
 /**
  * @brief Initialize the drivers
@@ -33,9 +32,6 @@ void init_drivers(driver_t* driver)
 	driver->state = STATE_RESET_NODE;
 	driver->time_stamp = 0;
 	driver->sensor_time_stamp = 0;
-	driver->prev_throttle = 0;
-	driver->prev_torque = 0;
-
 
 
 	//Clean data of the PDO and TPDO
@@ -67,7 +63,6 @@ void update_state_machine(driver_t* driver)
             PRINTF("Reset Node\n");
 
             driver->align = true;
-            driver->pwm = false;
             driver->state = STATE_POWER_ON_RESET;
             driver->mode = MODE_TORQUE;
             break;
@@ -114,13 +109,11 @@ void update_state_machine(driver_t* driver)
         case STATE_START:
             if (driver->align)
             {
-            	send_nmt_command(NMT_CMD_ENTER_PRE_OPERATIONAL, driver->node_id);
-            	driver->nmt_state = NMT_STATE_PRE_OPERATIONAL;
-            	PRINTF("Pre-Operational Mode\n");
 
-            	send_sdo_mode_of_operation(MODE_TORQUE, driver->node_id);
-            	driver->mode = MODE_VELOCITY;
-            	PRINTF("Mode of operation set to TORQUE\n");
+//            	send_sdo_mode_of_operation(MODE_TORQUE, driver->node_id);
+//            	driver->mode = MODE_TORQUE;
+//            	PRINTF("Mode of operation set to MODE_TORQUE\n");
+
 
 				PRINTF("Operational Mode\n");
 				send_nmt_command(NMT_CMD_ENTER_OPERATIONAL, driver->node_id);
@@ -129,14 +122,11 @@ void update_state_machine(driver_t* driver)
             }
             else
             {
-            	send_nmt_command(NMT_CMD_ENTER_PRE_OPERATIONAL, driver->node_id);
-            	driver->nmt_state = NMT_STATE_PRE_OPERATIONAL;
-            	PRINTF("Pre-Operational Mode\n");
-
                 align_motors(driver->node_id);
                 driver->mode = MODE_ALIGNMENT;
                 PRINTF("Aligning motors\n");
 
+                delay(1000);
                 send_nmt_command(NMT_CMD_ENTER_OPERATIONAL, driver->node_id);
                 PRINTF("Operational Mode for align\n");
 
@@ -152,13 +142,9 @@ void update_state_machine(driver_t* driver)
                 PRINTF("Alignment Complete\n");
                 driver->align = true;
 
-//                send_nmt_command(0x80, driver->node_id);
-//                driver->nmt_state = NMT_STATE_PRE_OPERATIONAL;
-//                PRINTF("Pre-Operational Mode\n");
-
-                send_sdo_mode_of_operation(MODE_TORQUE, driver->node_id);
-                driver->mode = MODE_VELOCITY;
-                PRINTF("Mode of operation set to Torque\n");
+//                send_sdo_mode_of_operation(MODE_TORQUE, driver->node_id);
+//                driver->mode = MODE_TORQUE;
+//                PRINTF("Mode of operation set to MODE_TORQUE\n");
 
 
                 PRINTF("Operational Mode\n");
@@ -181,22 +167,15 @@ void update_state_machine(driver_t* driver)
             if (gpioRead(DRIVE_GPIO_PORT))
             {
                 PRINTF("Drive Mode\n");
+
                 send_controlword(0x06, driver->node_id);
                 send_controlword(0x07, driver->node_id);
                 send_controlword(0x0F, driver->node_id);
 
-
-        		// Turn off the LEDs
-        		gpioWrite(PIN_LED_RED, HIGH);
-        		gpioWrite(PIN_LED_GREEN, HIGH);
-        		gpioWrite(PIN_LED_BLUE, HIGH);
-
                 driver->state = STATE_DRIVE;
                 driver->nmt_state = NMT_STATE_DRIVE;
             }
-
-            if (gpioRead(STOP_GPIO_PORT))
-            {
+            if (gpioRead(STOP_GPIO_PORT)) {
                 driver->state = STATE_STOPPED;
             }
             break;
@@ -214,7 +193,7 @@ void update_state_machine(driver_t* driver)
             PRINTF("Stop Mode\n");
             send_nmt_command(0x80, driver->node_id);
             driver->nmt_state = NMT_STATE_STOPPED;
-            driver->state = STATE_WAIT_START;
+            driver->state = STATE_RESET_NODE;
             break;
     }
 }
@@ -267,21 +246,11 @@ bool check_alignment_status(driver_t* driver)
  */
 void run_motors (driver_t* driver)
 {
-
 //	recive_pdo_message(driver);		//Receive PDO message
 	run_sensors();
 	send_pdo_message(driver);		//Send PDO message
 }
 
-
-void handle_errors(driver_t* driver)
-{
-	if(handle_implausibility()) // Check for implausibility of TPS sensors
-	{
-		driver->error_code = ERROR_IMPLAUSIBILITY;
-		driver->state = STATE_STOPPED;
-	}
-}
 
 
 
@@ -324,11 +293,7 @@ void recive_pdo_message(driver_t* driver)
 
 
 
-
-
-
-void send_pdo_message(driver_t *driver)
-{
+void send_pdo_message(driver_t *driver) {
 	int32_t current_throttle = 0;
 	int32_t current_torque = 0;
 
@@ -340,6 +305,10 @@ void send_pdo_message(driver_t *driver)
 	{
 		current_torque = -(int32_t) (tps_data.tps1_value);
 	}
+
+	driver->pdo1_data.data.control_word = 0x0F | driver->node_id << 8;
+	driver->pdo1_data.data.target_velocity = current_throttle;
+	driver->pdo1_data.data.target_torque = current_torque;
 
 	can_msg_t pdo_msg;
 	pdo_msg.id = RPDO1_ID + driver->node_id;
@@ -356,21 +325,13 @@ void send_pdo_message(driver_t *driver)
 	pdo_msg.data[6] = (uint8_t) (current_torque & 0x00FF);
 	pdo_msg.data[7] = (uint8_t) ((current_torque >> 8) & 0x00FF);
 
-	if (can_isTxReady()) {
+	if (can_isTxReady())
+	{
 		can_sendTxMsg(&pdo_msg);
-//		driver->sensor_time_stamp = millis(); // Update the timestamp
+		driver->sensor_time_stamp = millis(); // Update the timestamp
 	}
+
 }
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -388,7 +349,7 @@ void send_pdo_message(driver_t *driver)
 
 bool send_controlword(uint8_t controlword, uint16_t node_id)
 {
-//	send_sdo_write_command(0x2F, 0x6040, 0x00, (int32_t)controlword, node_id);
+
     can_msg_t control_msg;
     control_msg.id = RPDO1_ID + node_id;  // RPDO1 para el control del driver
     control_msg.len = 8;        // Longitud de datos (8 bytes)
@@ -407,11 +368,33 @@ bool send_controlword(uint8_t controlword, uint16_t node_id)
     {
         // Wait until Tx is ready
     }
-
     can_sendTxMsg(&control_msg);
-
+    int i = 1000000;
+    while(i--);
     PRINTF("Enviado Controlword 0x%02X al ID %03X\n", controlword, control_msg.id);
-    return true;
+
+
+
+//	if(send_sdo_write_command(0x2B, 0x6040, 0x00, (int32_t)controlword, node_id))
+//	{
+//		PRINTF("Controlword sent\n");
+//		return true;
+//
+//	}
+//	else
+//	{
+//		PRINTF("Controlword failed\n");
+//	}
+//
+//    if(can_isTxReady())
+//    {
+//    	can_sendTxMsg(&control_msg);
+//
+//    }
+//
+
+
+
 }
 
 
@@ -447,6 +430,8 @@ bool send_sdo_mode_of_operation(int8_t mode, uint16_t node_id)
 		//Wait for controller response
 		while(!recive_sdo_write_command(0x60, 0x1010, 0x01, 0x00000000, node_id))
 		{
+			//Use NMT command to Reset Node
+//			send_nmt_command(0x81, node_id); //Reset Node command
 			return 1;
 
 		}

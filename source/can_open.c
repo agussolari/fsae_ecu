@@ -168,11 +168,22 @@ void send_nmt_command(uint8_t command, uint16_t node_id) {
 	nmt_msg.data[0] = command; // NMT command (0x01 for Operational, 0x80 for Pre-operational)
 	nmt_msg.data[1] = (uint8_t) node_id;  // Node ID of the slave
 
-	while (!can_isTxReady())
+
+	while(!can_isTxReady())
 	{
-		// Wait until Tx is ready
-//		PRINTF("Waiting for Tx ready\n");
+		PRINTF("Waiting for Tx ready\n");
+
 	}
-	can_sendTxMsg(&nmt_msg);
+    PRINTF("Sending NMT command\n");
+    bool state = can_sendTxMsg(&nmt_msg);
+	if (state)
+	{
+		PRINTF("NMT command sent\n");
+	}
+	else
+	{
+		PRINTF("NMT command failed\n");
+	}
+
 }
 

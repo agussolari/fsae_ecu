@@ -28,7 +28,7 @@
 #define RX_FIFO_CANT		32
 
 // TX FIFO
-#define TX_FIFO_CANT		16
+#define TX_FIFO_CANT		32
 
 
 // Memoria
