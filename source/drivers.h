@@ -87,6 +87,12 @@ typedef enum {
 	NMT_CMD_RESET_COMMUNICATION = 0x82,
 } nmt_cmd_t;
 
+typedef enum {
+	STATE_ACCELERATING,
+	STATE_DECELERATING,
+	STATE_IDLE
+} moving_state_t;
+
 //Mode of operation
 typedef enum {
 	MODE_VELOCITY = 0x09,
@@ -168,12 +174,15 @@ typedef struct {
     driver_state_t state;
     nmt_state_t nmt_state;
     nmt_error_t error_code;
+    moving_state_t moving_state;
     uint32_t time_stamp;
     uint32_t sensor_time_stamp;
+
 
     mode_t mode;
 
     bool align;
+    bool pwm;
 
        //TPDO data
     tpdo1_data_t tpdo1_data;

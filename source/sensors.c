@@ -71,15 +71,19 @@ void run_sensors(void) {
 
     // Read the TPS values
     uint16_t tps1_raw = (uint16_t)(((54800.0 - (double)adcReadChannelBlocking(ADC_CHANNEL_TPS1)) / (6704.0)) * 3000.0);
-    uint16_t tps2_raw = (uint16_t)((((double)adcReadChannelBlocking(ADC_CHANNEL_TPS2) - 9024.0) / (1216.0)) * 3000.0);
+    uint16_t tps2_raw = (uint16_t)((((double)adcReadChannelBlocking(ADC_CHANNEL_TPS2) - 9024.0) / (1216.0)) * 1000.0);
 
     // Apply the EMA filter
-    tps1_filtered = (uint16_t)(ALPHA * tps1_raw + (1 - ALPHA) * tps1_filtered);
-    tps2_filtered = (uint16_t)(ALPHA * tps2_raw + (1 - ALPHA) * tps2_filtered);
+//    tps1_filtered = (uint16_t)(ALPHA * tps1_raw + (1 - ALPHA) * tps1_filtered);
+//    tps2_filtered = (uint16_t)(ALPHA * tps2_raw + (1 - ALPHA) * tps2_filtered);
 
     // Update the TPS data
-    tps_data.tps1_value = tps1_filtered;
-    tps_data.tps2_value = tps2_filtered;
+//    tps_data.tps1_value = tps1_filtered;
+//    tps_data.tps2_value = tps2_filtered;
+
+    tps_data.tps1_value = tps1_raw;
+
+
 }
 
 

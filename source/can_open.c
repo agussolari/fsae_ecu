@@ -171,7 +171,7 @@ void send_nmt_command(uint8_t command, uint16_t node_id) {
 	while (!can_isTxReady())
 	{
 		// Wait until Tx is ready
-		PRINTF("Waiting for Tx ready\n");
+//		PRINTF("Waiting for Tx ready\n");
 	}
 	can_sendTxMsg(&nmt_msg);
 }
