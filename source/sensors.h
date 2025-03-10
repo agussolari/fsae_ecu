@@ -27,7 +27,11 @@
 
 #define SENSOR_READ_INTERVAL 100 // Intervalo de lectura de los sensores en ms
 
+#define START_GPIO_PORT 		PORTNUM2PIN(1, 29)
+#define DRIVE_GPIO_PORT 		PORTNUM2PIN(0, 14)
+#define STOP_GPIO_PORT 			PORTNUM2PIN(1, 9)
 
+#define CALIBRATION_GPIO_PORT 	PORTNUM2PIN(0, 24)
 
 void init_sensor(void);
 void init_buttons(void);
@@ -46,6 +50,10 @@ typedef struct {
     uint16_t tps2_value;
     bool implausibility_detected;
     time_t implausibility_start_time;
+    uint16_t tps1_min_value;
+    uint16_t tps1_max_value;
+    uint16_t tps2_min_value;
+    uint16_t tps2_max_value;
 } tps_data_t;
 
 extern tps_data_t tps_data;

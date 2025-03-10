@@ -9,6 +9,8 @@
  ******************************************************************************/
 
 #include "common.h"
+#include "drivers.h"
+
 
 #include "millis.h"
 #include "can.h"
@@ -17,6 +19,8 @@
 #include "fsl_debug_console.h"
 #include "can.h"
 #include "leds.h"
+#include "flash_wrp.h"
+
 
 #include "fsl_common.h"
 
@@ -30,7 +34,6 @@
 #include "board.h"
 
 #include "sensors.h"
-#include "drivers.h"
 #include "systick.h"
 #include "adc.h"
 
@@ -53,11 +56,15 @@ int main(void)
 	BOARD_InitDebugConsole();
 
 
-	can_init(CAN_BAUDRATE);
-	init_buttons();
-	init_sensor();
-	uartInit();
-	init_leds();
+	can_init(CAN_BAUDRATE);	//INIT CAN
+	init_buttons();  //INIT START, DRIVE AND STOP BUTTONS
+	init_sensor();	//INIT ADC FOR SENSORS
+	init_leds();	//INIT LEDS
+	uartInit();		//INIT UART
+	init_flash();	//INIT FLASH MEMORY
+	millis_init();	//INIT MILLIS
+
+
 
 	SysTick_Init();
 
@@ -71,9 +78,9 @@ int main(void)
 	init_drivers(&driver_2);
 
 	//Initialice periodic interrupt for uart and led control and lora
-	SysTick_RegisterCallback(update_data, 1000);
-	SysTick_RegisterCallback(update_driver_leds, 1000);
-//	SysTick_RegisterCallback(run_sensors, 100);
+	SysTick_RegisterCallback(update_data, 200);
+	SysTick_RegisterCallback(update_driver_leds, 200);
+	SysTick_RegisterCallback(run_sensors, 100);
 
 
 	PRINTF("Init complete\n");
@@ -96,8 +103,11 @@ void update_data(void)
 	send_motor_data_uart(&driver_2);
 }
 
-void update_driver_leds(void) {
-	update_leds(driver_1.nmt_state);
+void update_driver_leds(void)
+{
+	update_leds_by_state(driver_1.nmt_state, driver_1.state);
+	update_leds_by_rpm(tps_data.tps1_value);
+
 }
 
 
@@ -107,3 +117,40 @@ void update_driver_leds(void) {
 
 
 
+
+
+////FLASH EXAMPLE
+//#include "flash_wrp.h"
+//#include "fsl_debug_console.h"
+//#include "pin_mux.h"
+//#include "board.h"
+//#include "fsl_iap.h"
+//#include "fsl_iap_ffr.h"
+//#include "fsl_common.h"
+//
+//
+//
+//uint32_t s_buffer[BUFFER_LEN] = {1, 2, 3, 4};
+//
+//int main(void)
+//{
+//
+////    /* attach 12 MHz clock to FLEXCOMM0 (debug console) */
+////    CLOCK_AttachClk(BOARD_DEBUG_UART_CLK_ATTACH);
+////    /* enable clock for GPIO*/
+////    CLOCK_EnableClock(kCLOCK_Gpio0);
+////    CLOCK_EnableClock(kCLOCK_Gpio1);
+//
+//	BOARD_InitPins();
+//	BOARD_BootClockFROHF96M();
+//	SystemCoreClockUpdate();
+//	BOARD_InitDebugConsole();
+//
+//	init_flash();
+//
+////	program_flash(s_buffer, sizeof(s_buffer));
+//
+//	uint32_t data[BUFFER_LEN];
+//	read_flash(data, BUFFER_LEN);
+//
+//}

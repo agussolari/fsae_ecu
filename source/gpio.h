@@ -41,9 +41,7 @@
 #define GPIO_OUTPUT_OPENDRAIN    4
 #define GPIO_CANT_MODES	         5
 
-#define PIN_LED_RED     	PORTNUM2PIN(0,21)
-#define PIN_LED_GREEN     	PORTNUM2PIN(0,22)
-#define PIN_LED_BLUE     	PORTNUM2PIN(0,18)
+
 #define LED_ACTIVE			LOW
 
 

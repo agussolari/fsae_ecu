@@ -8,6 +8,8 @@
 #include <stdio.h>
 
 static bool flag = false;
+static bool button_pressed = false;
+
 
 
 void run_motors (driver_t* driver);
@@ -44,7 +46,23 @@ void init_drivers(driver_t* driver)
 		driver->pdo2_data.b[i] = 0;
 	}
 
-	millis_init();
+	//Read flash memory and save the calibration values
+	uint32_t data[4];
+	read_flash(data, 4);
+
+	tps_data.tps1_min_value = (uint16_t)data[0];
+	tps_data.tps1_max_value = (uint16_t)data[1];
+	tps_data.tps2_min_value = (uint16_t)data[2];
+	tps_data.tps2_max_value = (uint16_t)data[3];
+
+	//Initialize the calibration flag
+	if (tps_data.tps1_min_value == 0 && tps_data.tps1_max_value == 0
+			&& tps_data.tps2_min_value == 0 && tps_data.tps2_max_value == 0) {
+		driver->calibration_needed = true;
+	} else {
+		driver->calibration_needed = false;
+	}
+
 
 }
 
@@ -93,6 +111,7 @@ void update_state_machine(driver_t* driver)
                 PRINTF("Init SDO command sent\n");
             }
             driver->state = STATE_WAIT_START;
+            driver->nmt_state = NMT_STATE_PRE_OPERATIONAL;
             PRINTF("Initialization Mode\n");
 
             break;
@@ -100,19 +119,99 @@ void update_state_machine(driver_t* driver)
         case STATE_WAIT_START:
             if (gpioRead(START_GPIO_PORT))
             {
+            	if (driver->calibration_needed)
+            	{
+					driver->state = STATE_CALIBRATION_1;
+					break;
+            	} else {
             	PRINTF("Start Mode\n");
-                driver->state = STATE_START;
-                break;
+            	driver->state = STATE_START;
+            	break;
+				}
+            }
+			if (gpioRead(CALIBRATION_GPIO_PORT) == FALSE)
+			{
+				button_pressed = true;
+			}
+			else if (button_pressed && gpioRead(CALIBRATION_GPIO_PORT) == TRUE)
+			{
+				button_pressed = false;
+				driver->state = STATE_CALIBRATION_1;
+				break;
+			}
+			break;
+
+        case STATE_CALIBRATION_1:
+            // Read the TPS values
+            uint16_t tps1_min = adcReadChannelBlocking(ADC_CHANNEL_TPS1);
+            uint16_t tps2_min = adcReadChannelBlocking(ADC_CHANNEL_TPS2);
+
+
+            //Map de 0 value
+            if (gpioRead(STOP_GPIO_PORT) == TRUE)
+            {
+            	driver->state = STATE_STOPPED;
+            	break;
+            }
+
+            if (gpioRead(CALIBRATION_GPIO_PORT) == FALSE)
+            {
+            	button_pressed = true;
+            }
+            else if (button_pressed && gpioRead(CALIBRATION_GPIO_PORT) == TRUE)
+            {
+            	button_pressed = false;
+            	tps_data.tps1_min_value = tps1_min;
+            	tps_data.tps2_min_value = tps2_min;
+            	driver->state = STATE_CALIBRATION_2;
+            	break;
             }
             break;
+
+        case STATE_CALIBRATION_2:
+		// Read the TPS values
+		uint16_t tps1_max = adcReadChannelBlocking(ADC_CHANNEL_TPS1);
+		uint16_t tps2_max = adcReadChannelBlocking(ADC_CHANNEL_TPS2);
+
+		//Map de 1000 value
+		if (gpioRead(STOP_GPIO_PORT) == TRUE) {
+			driver->state = STATE_STOPPED;
+			break;
+		}
+
+		if (gpioRead(CALIBRATION_GPIO_PORT) == FALSE) {
+			button_pressed = true;
+		} else if (button_pressed && gpioRead(CALIBRATION_GPIO_PORT) == TRUE) {
+			button_pressed = false;
+			tps_data.tps1_max_value = tps1_max;
+			tps_data.tps2_max_value = tps2_max;
+
+
+			//Save the calibration values in flash memory
+			uint32_t data[4];
+			data[0] = tps_data.tps1_min_value;
+			data[1] = tps_data.tps1_max_value;
+			data[2] = tps_data.tps2_min_value;
+			data[3] = tps_data.tps2_max_value;
+			program_flash(data, 8);
+
+			driver->calibration_needed = false;
+
+			driver->state = STATE_WAIT_START;
+			break;
+		}
+		break;
+
+
+
 
         case STATE_START:
             if (driver->align)
             {
 
-//            	send_sdo_mode_of_operation(MODE_TORQUE, driver->node_id);
-//            	driver->mode = MODE_TORQUE;
-//            	PRINTF("Mode of operation set to MODE_TORQUE\n");
+            	send_sdo_mode_of_operation(MODE_TORQUE, driver->node_id);
+            	driver->mode = MODE_TORQUE;
+            	PRINTF("Mode of operation set to MODE_TORQUE\n");
 
 
 				PRINTF("Operational Mode\n");
@@ -246,8 +345,7 @@ bool check_alignment_status(driver_t* driver)
  */
 void run_motors (driver_t* driver)
 {
-//	recive_pdo_message(driver);		//Receive PDO message
-	run_sensors();
+	recive_pdo_message(driver);		//Receive PDO message
 	send_pdo_message(driver);		//Send PDO message
 }
 

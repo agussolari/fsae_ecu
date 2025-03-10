@@ -33,6 +33,9 @@ void init_buttons(void) {
 	gpioMode(DRIVE_GPIO_PORT, GPIO_INPUT_PULLDOWN);
 	gpioMode(STOP_GPIO_PORT, GPIO_INPUT_PULLDOWN);
 
+	//Inicializar los GPIO para conectar los botones
+	gpioMode(CALIBRATION_GPIO_PORT, GPIO_INPUT_PULLUP);
+
 
 
 	PRINTF("Buttons started\n");
@@ -63,24 +66,6 @@ uint16_t moving_average(uint16_t* values) {
     return (uint16_t)(sum / FILTER_SIZE);
 }
 
-//void run_sensors(void) {
-//    // Leer el valor del freno y escalarlo a un rango de 0 a 1000
-//    sensor_values.brake = (uint16_t)(((float)adcReadChannelBlocking(ADC_CHANNEL_BRAKE) / ADC_MAX_VALUE) * 1000);
-//
-//    sensor_values.direction = (uint16_t)(((float)adcReadChannelBlocking(ADC_CHANNEL_DIRECTION) / ADC_MAX_VALUE) * 1000);
-//
-//    // Leer los valores de TPS y aplicar el filtro de media móvil
-//    tps1_values[tps_index] = (uint16_t)(( (double)adcReadChannelBlocking(ADC_CHANNEL_TPS1)));
-////    tps1_values[tps_index] = (uint16_t)(((54800.0 - (double)adcReadChannelBlocking(ADC_CHANNEL_TPS1)) / (6704.0)) * 1000.0);
-//
-//    tps2_values[tps_index] = (uint16_t)(float)adcReadChannelBlocking(ADC_CHANNEL_TPS2);
-//
-//    tps_data.tps1_value = moving_average(tps1_values);
-//    tps_data.tps2_value = moving_average(tps2_values);
-//
-//    // Incrementar el índice del filtro circular
-//    tps_index = (tps_index + 1) % FILTER_SIZE;
-//}
 
 
 void run_sensors(void) {
@@ -94,12 +79,12 @@ void run_sensors(void) {
     uint16_t raw_tps2 = adcReadChannelBlocking(ADC_CHANNEL_TPS2);
 
     // Map the TPS1 value
-    if (raw_tps1 <= 14000) {
+    if (raw_tps1 <= tps_data.tps1_min_value) {
         tps_data.tps1_value = 0;
-    } else if (raw_tps1 >= 18352) {
+    } else if (raw_tps1 >= tps_data.tps1_max_value) {
         tps_data.tps1_value = 1000;
     } else {
-        tps_data.tps1_value = (uint16_t)(((float)(raw_tps1 - 14000) / (18352 - 14000)) * 1000);
+        tps_data.tps1_value = (uint16_t)(((float)(raw_tps1 - tps_data.tps1_min_value) / (tps_data.tps1_max_value - tps_data.tps1_min_value)) * 1000);
     }
 
     // Map the TPS2 value similarly if needed

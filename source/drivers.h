@@ -8,14 +8,7 @@
 #ifndef DRIVERS_H_
 #define DRIVERS_H_
 
-#include <stdint.h>
-#include "can.h"
-#include "sensors.h"
-#include "gpio.h"
-#include "can_open.h"
-#include "millis.h"
-#include "uart.h"
-#include "leds.h"
+
 
 
 #define CAN_BAUDRATE			500000
@@ -33,9 +26,6 @@
 #define TPDO3_ID 				(0x380)
 #define TPDO4_ID 				(0x480)
 
-#define START_GPIO_PORT 		PORTNUM2PIN(1, 23)
-#define DRIVE_GPIO_PORT 		PORTNUM2PIN(0, 0)
-#define STOP_GPIO_PORT 			PORTNUM2PIN(0, 9)
 
 
 #define SAVE_PARAM 				(uint32_t)(0x65766173)
@@ -49,6 +39,8 @@ typedef enum {
 	STATE_ALIGN_MOTORS,
 	STATE_WAIT_ALIGN_MOTORS,
 	STATE_ALIGNING_MOTORS,
+	STATE_CALIBRATION_1,
+	STATE_CALIBRATION_2,
 	STATE_WAIT_START,
     STATE_START,
 	STATE_WAIT_DRIVE,
@@ -92,6 +84,18 @@ typedef enum {
 	MODE_TORQUE = 0x0A,
 	MODE_ALIGNMENT = -4
 } mode_t;
+
+#include "leds.h"
+#include <stdint.h>
+#include "can.h"
+#include "sensors.h"
+#include "gpio.h"
+#include "can_open.h"
+#include "millis.h"
+#include "uart.h"
+#include "flash_wrp.h"
+
+
 
 //Make union of TPDO1 data
 typedef union {
@@ -188,6 +192,9 @@ typedef struct {
     int32_t prev_throttle; // Add previous throttle value
     int16_t prev_torque;   // Add previous torque value
     bool zero_message_sent; // Add flag for zero message sent
+
+    bool calibration_needed;
+
 } driver_t;
 
 
