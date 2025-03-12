@@ -31,7 +31,7 @@
 #define DRIVE_GPIO_PORT 		PORTNUM2PIN(0, 14)
 #define STOP_GPIO_PORT 			PORTNUM2PIN(1, 9)
 
-#define CALIBRATION_GPIO_PORT 	PORTNUM2PIN(0, 24)
+#define CALIBRATION_GPIO_PORT 	PORTNUM2PIN(1, 3)
 
 void init_sensor(void);
 void init_buttons(void);

@@ -32,8 +32,8 @@ void handle_errors(void);
 void init_drivers(driver_t* driver)
 {
 	driver->state = STATE_RESET_NODE;
-	driver->time_stamp = 0;
-	driver->sensor_time_stamp = 0;
+//	driver->time_stamp = 0;
+//	driver->sensor_time_stamp = 0;
 
 
 	//Clean data of the PDO and TPDO
@@ -390,45 +390,65 @@ void recive_pdo_message(driver_t* driver)
 }
 
 
+#define TPS_THRESHOLD 10
+#define TPS_INTERVAL_WAIT 100
+#define TPS_INTERVAL_RUN 25
 
-void send_pdo_message(driver_t *driver) {
-	int32_t current_throttle = 0;
-	int32_t current_torque = 0;
 
-	if (driver->node_id == NODE_ID_1)
-	{
-		current_torque =(int32_t) (tps_data.tps1_value);
-	}
-	else if (driver->node_id == NODE_ID_2)
-	{
-		current_torque = -(int32_t) (tps_data.tps1_value);
-	}
+void send_pdo_message(driver_t *driver)
+{
+	uint32_t interval = TPS_INTERVAL_WAIT; // Default interval is 100ms
 
-	driver->pdo1_data.data.control_word = 0x0F | driver->node_id << 8;
-	driver->pdo1_data.data.target_velocity = current_throttle;
-	driver->pdo1_data.data.target_torque = current_torque;
+	driver->tps_time_stamp = millis();
+	driver->tps_value = (tps_data.tps1_value + tps_data.tps2_value)/2;
 
-	can_msg_t pdo_msg;
-	pdo_msg.id = RPDO1_ID + driver->node_id;
-	pdo_msg.len = 8;
 
-	pdo_msg.data[0] = 0x0F;
-	pdo_msg.data[1] = driver->node_id;
-
-	pdo_msg.data[2] = (uint8_t) (current_throttle & 0x000000FF);
-	pdo_msg.data[3] = (uint8_t) ((current_throttle >> 8) & 0x000000FF);
-	pdo_msg.data[4] = (uint8_t) ((current_throttle >> 16) & 0x000000FF);
-	pdo_msg.data[5] = (uint8_t) ((current_throttle >> 24) & 0x000000FF);
-
-	pdo_msg.data[6] = (uint8_t) (current_torque & 0x00FF);
-	pdo_msg.data[7] = (uint8_t) ((current_torque >> 8) & 0x00FF);
-
-	if (can_isTxReady())
-	{
-		can_sendTxMsg(&pdo_msg);
-		driver->sensor_time_stamp = millis(); // Update the timestamp
+	// Check for TPS variation
+	if (abs(driver->tps_value - driver->last_tps_value) > TPS_THRESHOLD) {
+		interval = TPS_INTERVAL_RUN; // If accelerating, set interval to 25ms
+		driver->last_tps_value = driver->tps_value;
 	}
 
+	// Check if the required interval has passed
+	if (driver->tps_time_stamp - driver->last_tps_time_stamp >= interval)
+	{
+		driver->last_tps_time_stamp = driver->tps_time_stamp;
+
+	    int32_t current_torque = 0;
+	    int32_t current_throttle = 0;
+
+		if (driver->node_id == NODE_ID_1)
+		{
+			current_torque = (int32_t) (driver->tps_value);
+		} else if (driver->node_id == NODE_ID_2)
+		{
+			current_torque = -(int32_t) (driver->tps_value);
+		}
+
+		driver->pdo1_data.data.control_word = 0x0F | driver->node_id << 8;
+		driver->pdo1_data.data.target_velocity = current_throttle;
+		driver->pdo1_data.data.target_torque = current_torque;
+
+		can_msg_t pdo_msg;
+		pdo_msg.id = RPDO1_ID + driver->node_id;
+		pdo_msg.len = 8;
+
+		pdo_msg.data[0] = 0x0F;
+		pdo_msg.data[1] = driver->node_id;
+
+		pdo_msg.data[2] = (uint8_t) (current_throttle & 0x000000FF);
+		pdo_msg.data[3] = (uint8_t) ((current_throttle >> 8) & 0x000000FF);
+		pdo_msg.data[4] = (uint8_t) ((current_throttle >> 16) & 0x000000FF);
+		pdo_msg.data[5] = (uint8_t) ((current_throttle >> 24) & 0x000000FF);
+
+		pdo_msg.data[6] = (uint8_t) (current_torque & 0x00FF);
+		pdo_msg.data[7] = (uint8_t) ((current_torque >> 8) & 0x00FF);
+
+		if (can_isTxReady())
+		{
+			can_sendTxMsg(&pdo_msg);
+		}
+	}
 }
 
 

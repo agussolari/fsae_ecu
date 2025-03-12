@@ -170,13 +170,14 @@ typedef struct {
     uint16_t node_id;
     driver_state_t state;
     nmt_state_t nmt_state;
-    uint16_t error_code;
-    uint32_t time_stamp;
-    uint32_t sensor_time_stamp;
-
     mode_t mode;
 
+    uint16_t error_code;
+
+    	//STATES
     bool align;
+    bool calibration_needed;
+
 
        //TPDO data
     tpdo1_data_t tpdo1_data;
@@ -188,12 +189,12 @@ typedef struct {
     pdo1_data_t pdo1_data;
     pdo2_data_t pdo2_data;
 
+    	//TPS
+    uint32_t tps_time_stamp;
+    uint32_t last_tps_time_stamp;
+    uint32_t tps_value;
+    uint32_t last_tps_value;
 
-    int32_t prev_throttle; // Add previous throttle value
-    int16_t prev_torque;   // Add previous torque value
-    bool zero_message_sent; // Add flag for zero message sent
-
-    bool calibration_needed;
 
 } driver_t;
 
