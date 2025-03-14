@@ -5,7 +5,9 @@
  *      Author: asolari
  */
 #include "drivers.h"
-#include <stdio.h>
+
+driver_t driver_1;
+driver_t driver_2;
 
 static bool flag = false;
 static bool button_pressed = false;
@@ -23,7 +25,7 @@ bool send_sdo_mode_of_operation(int8_t mode, uint16_t node_id);
 
 bool check_alignment_status(driver_t* driver);
 void align_motors(uint16_t node_id);
-void handle_errors(void);
+void handle_errors(driver_t *driver);
 
 /**
  * @brief Initialize the drivers
@@ -32,8 +34,9 @@ void handle_errors(void);
 void init_drivers(driver_t* driver)
 {
 	driver->state = STATE_RESET_NODE;
+
 	driver->time_stamp = 0;
-	driver->sensor_time_stamp = 0;
+	driver->error_time_stamp = 0;
 
 
 	//Clean data of the PDO and TPDO
@@ -82,6 +85,7 @@ void update_state_machine(driver_t* driver)
 
             driver->align = true;
             driver->state = STATE_POWER_ON_RESET;
+            driver->nmt_state = NMT_STATE_BOOTUP;
             driver->mode = MODE_TORQUE;
             break;
 
@@ -99,6 +103,23 @@ void update_state_machine(driver_t* driver)
                     break;
                 }
             }
+
+			if (gpioRead(CALIBRATION_GPIO_PORT) == FALSE)
+			{
+				button_pressed = true;
+			}
+			else if (button_pressed && gpioRead(CALIBRATION_GPIO_PORT) == TRUE)
+			{
+				button_pressed = false;
+
+				PRINTF("Calibration Mode\n");
+
+				driver_1.state = STATE_CALIBRATION_1;
+				driver_2.state = STATE_IDLE;
+
+				break;
+			}
+
             if (gpioRead(STOP_GPIO_PORT))
             {
                 driver->state = STATE_RESET_NODE;
@@ -123,10 +144,12 @@ void update_state_machine(driver_t* driver)
             	{
 					driver->state = STATE_CALIBRATION_1;
 					break;
-            	} else {
-            	PRINTF("Start Mode\n");
-            	driver->state = STATE_START;
-            	break;
+            	}
+            	else
+            	{
+					PRINTF("Start Mode\n");
+					driver->state = STATE_START;
+					break;
 				}
             }
 			if (gpioRead(CALIBRATION_GPIO_PORT) == FALSE)
@@ -136,17 +159,17 @@ void update_state_machine(driver_t* driver)
 			else if (button_pressed && gpioRead(CALIBRATION_GPIO_PORT) == TRUE)
 			{
 				button_pressed = false;
-				driver->state = STATE_CALIBRATION_1;
+
+				PRINTF("Calibration Mode\n");
+
+				driver_1.state = STATE_CALIBRATION_1;
+				driver_2.state = STATE_IDLE;
+
 				break;
 			}
 			break;
 
         case STATE_CALIBRATION_1:
-            // Read the TPS values
-            uint16_t tps1_min = adcReadChannelBlocking(ADC_CHANNEL_TPS1);
-            uint16_t tps2_min = adcReadChannelBlocking(ADC_CHANNEL_TPS2);
-
-
             //Map de 0 value
             if (gpioRead(STOP_GPIO_PORT) == TRUE)
             {
@@ -161,17 +184,20 @@ void update_state_machine(driver_t* driver)
             else if (button_pressed && gpioRead(CALIBRATION_GPIO_PORT) == TRUE)
             {
             	button_pressed = false;
+                // Read the TPS values
+                uint16_t tps1_min = adcReadChannelBlocking(ADC_CHANNEL_TPS1);
+                uint16_t tps2_min = adcReadChannelBlocking(ADC_CHANNEL_TPS2);
+
             	tps_data.tps1_min_value = tps1_min;
             	tps_data.tps2_min_value = tps2_min;
+            	PRINTF("TPS 0% value saved TPS1: %d TPS2: %d\n", tps1_min, tps2_min);
+
             	driver->state = STATE_CALIBRATION_2;
             	break;
             }
             break;
 
         case STATE_CALIBRATION_2:
-		// Read the TPS values
-		uint16_t tps1_max = adcReadChannelBlocking(ADC_CHANNEL_TPS1);
-		uint16_t tps2_max = adcReadChannelBlocking(ADC_CHANNEL_TPS2);
 
 		//Map de 1000 value
 		if (gpioRead(STOP_GPIO_PORT) == TRUE) {
@@ -183,21 +209,41 @@ void update_state_machine(driver_t* driver)
 			button_pressed = true;
 		} else if (button_pressed && gpioRead(CALIBRATION_GPIO_PORT) == TRUE) {
 			button_pressed = false;
+
+			// Read the TPS values
+			uint16_t tps1_max = adcReadChannelBlocking(ADC_CHANNEL_TPS1);
+			uint16_t tps2_max = adcReadChannelBlocking(ADC_CHANNEL_TPS2);
 			tps_data.tps1_max_value = tps1_max;
 			tps_data.tps2_max_value = tps2_max;
 
+			PRINTF("TPS 100% value saved TPS1: %d TPS2: %d\n", tps1_max, tps2_max);
+
+
 
 			//Save the calibration values in flash memory
-			uint32_t data[4];
-			data[0] = tps_data.tps1_min_value;
-			data[1] = tps_data.tps1_max_value;
-			data[2] = tps_data.tps2_min_value;
-			data[3] = tps_data.tps2_max_value;
-			program_flash(data, 8);
+			uint32_t data[BUFFER_LEN];
+			data[0] = (uint32_t)tps_data.tps1_min_value;
+			data[1] = (uint32_t)tps_data.tps1_max_value;
+			data[2] = (uint32_t)tps_data.tps2_min_value;
+			data[3] = (uint32_t)tps_data.tps2_max_value;
+			program_flash(data, sizeof(data));
 
 			driver->calibration_needed = false;
+			PRINTF("Calibration complete\n");
 
-			driver->state = STATE_WAIT_START;
+			if (driver->nmt_state == NMT_STATE_BOOTUP)
+			{
+				driver_1.state = STATE_RESET_NODE;
+				driver_2.state = STATE_RESET_NODE;
+			}
+			else
+			{
+				driver_1.state = STATE_WAIT_START;
+				driver_2.state = STATE_WAIT_START;
+			}
+
+
+
 			break;
 		}
 		break;
@@ -281,6 +327,7 @@ void update_state_machine(driver_t* driver)
 
         case STATE_DRIVE:
             run_motors(driver);
+            handle_errors(driver);
 
             if (gpioRead(STOP_GPIO_PORT)) {
                 driver->state = STATE_STOPPED;
@@ -292,7 +339,18 @@ void update_state_machine(driver_t* driver)
             PRINTF("Stop Mode\n");
             send_nmt_command(0x80, driver->node_id);
             driver->nmt_state = NMT_STATE_STOPPED;
-            driver->state = STATE_RESET_NODE;
+
+            driver->state = STATE_POWER_ON_RESET;
+
+            break;
+
+        case STATE_ERROR:
+            // delay for 5 seconds non blocking
+            if ((driver->time_stamp - driver->error_time_stamp) >= 5000)
+            {
+            	driver->error_time_stamp = driver->time_stamp;
+            	driver->state = STATE_RESET_NODE;
+            }
             break;
     }
 }
@@ -391,44 +449,68 @@ void recive_pdo_message(driver_t* driver)
 
 
 
-void send_pdo_message(driver_t *driver) {
-	int32_t current_throttle = 0;
-	int32_t current_torque = 0;
+#define TPS_THRESHOLD 10
+#define TPS_INTERVAL_WAIT 100
+#define TPS_INTERVAL_RUN 20
 
-	if (driver->node_id == NODE_ID_1)
-	{
-		current_torque =(int32_t) (tps_data.tps1_value);
-	}
-	else if (driver->node_id == NODE_ID_2)
-	{
-		current_torque = -(int32_t) (tps_data.tps1_value);
-	}
 
-	driver->pdo1_data.data.control_word = 0x0F | driver->node_id << 8;
-	driver->pdo1_data.data.target_velocity = current_throttle;
-	driver->pdo1_data.data.target_torque = current_torque;
+void send_pdo_message(driver_t *driver)
+{
+	uint32_t interval = TPS_INTERVAL_WAIT; // Default interval is 100ms
 
-	can_msg_t pdo_msg;
-	pdo_msg.id = RPDO1_ID + driver->node_id;
-	pdo_msg.len = 8;
+	// Read the TPS values
+	driver->tps_value = (tps_data.tps1_value + tps_data.tps2_value)/2;
 
-	pdo_msg.data[0] = 0x0F;
-	pdo_msg.data[1] = driver->node_id;
+	driver->tps_time_stamp = millis();
 
-	pdo_msg.data[2] = (uint8_t) (current_throttle & 0x000000FF);
-	pdo_msg.data[3] = (uint8_t) ((current_throttle >> 8) & 0x000000FF);
-	pdo_msg.data[4] = (uint8_t) ((current_throttle >> 16) & 0x000000FF);
-	pdo_msg.data[5] = (uint8_t) ((current_throttle >> 24) & 0x000000FF);
 
-	pdo_msg.data[6] = (uint8_t) (current_torque & 0x00FF);
-	pdo_msg.data[7] = (uint8_t) ((current_torque >> 8) & 0x00FF);
 
-	if (can_isTxReady())
-	{
-		can_sendTxMsg(&pdo_msg);
-		driver->sensor_time_stamp = millis(); // Update the timestamp
+	// Check for TPS variation
+	if (abs(driver->tps_value - driver->last_tps_value) > TPS_THRESHOLD) {
+		interval = TPS_INTERVAL_RUN; // If accelerating, set interval to 25ms
+		driver->last_tps_value = driver->tps_value;
 	}
 
+	// Check if the required interval has passed
+	if (driver->tps_time_stamp - driver->last_tps_time_stamp >= interval)
+	{
+		driver->last_tps_time_stamp = driver->tps_time_stamp;
+
+	    int32_t current_torque = 0;
+	    int32_t current_throttle = 0;
+
+		if (driver->node_id == NODE_ID_1)
+		{
+			current_torque = (int32_t) (driver->tps_value);
+		} else if (driver->node_id == NODE_ID_2)
+		{
+			current_torque = -(int32_t) (driver->tps_value);
+		}
+
+		driver->pdo1_data.data.control_word = 0x0F | driver->node_id << 8;
+		driver->pdo1_data.data.target_velocity = current_throttle;
+		driver->pdo1_data.data.target_torque = current_torque;
+
+		can_msg_t pdo_msg;
+		pdo_msg.id = RPDO1_ID + driver->node_id;
+		pdo_msg.len = 8;
+
+		pdo_msg.data[0] = 0x0F;
+		pdo_msg.data[1] = driver->node_id;
+
+		pdo_msg.data[2] = (uint8_t) (current_throttle & 0x000000FF);
+		pdo_msg.data[3] = (uint8_t) ((current_throttle >> 8) & 0x000000FF);
+		pdo_msg.data[4] = (uint8_t) ((current_throttle >> 16) & 0x000000FF);
+		pdo_msg.data[5] = (uint8_t) ((current_throttle >> 24) & 0x000000FF);
+
+		pdo_msg.data[6] = (uint8_t) (current_torque & 0x00FF);
+		pdo_msg.data[7] = (uint8_t) ((current_torque >> 8) & 0x00FF);
+
+		if (can_isTxReady())
+		{
+			can_sendTxMsg(&pdo_msg);
+		}
+	}
 }
 
 
@@ -542,23 +624,64 @@ void send_motor_data_uart(driver_t *driver)
 {
 	char buffer[64];
 
-	// Formatear los datos en un mensaje legible
 	int len = snprintf(buffer, sizeof(buffer),
-				":%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d:", driver->node_id,
-				driver->state,
-				driver->nmt_state,
-				driver->mode,
-				driver->tpdo4_data.data.motor_temperature,
-				driver->tpdo2_data.data.controller_temperature,
-				driver->tpdo3_data.data.motor_current_actual_value,
-				driver->pdo1_data.data.target_torque,
-				driver->tpdo1_data.data.actual_torque,
-				driver->pdo1_data.data.target_velocity,
-				driver->tpdo4_data.data.actual_velocity,
-				driver->error_code);
+	            ":%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d:",
+	            driver->node_id,
+	            driver->state,
+	            driver->nmt_state,
+	            driver->mode,
+
+	            driver->pdo1_data.data.target_torque,
+	            driver->pdo1_data.data.target_velocity,
+
+	            driver->tpdo1_data.data.actual_torque,
+
+	            driver->tpdo2_data.data.controller_temperature,
+	            driver->tpdo2_data.data.current_demand,
+
+	            driver->tpdo4_data.data.torque_regulator,
+	            driver->tpdo4_data.data.actual_velocity,
+	            driver->tpdo4_data.data.motor_temperature,
+
+	            driver->error_code,
+
+	            tps_data.tps1_value,
+	            tps_data.tps2_value
+	            );
+
+
 
 	// Enviar los datos por UART
 	uartWriteMsg(buffer, len);
+}
+
+void handle_errors(driver_t *driver)
+{
+	// Check for errors
+	if(check_implausibility_tps())
+	{
+		driver->error_code = ERROR_IMPLAUSIBILITY;
+		driver->error_time_stamp = driver->time_stamp;
+		driver->state = STATE_ERROR;
+		driver->nmt_state = NMT_STATE_ERROR;
+	}
+	else if (driver->tpdo2_data.data.controller_temperature > 70)
+	{
+		driver->error_code = ERROR_CONTROLLER_OVERTEMP;
+	}
+	else if (driver->tpdo4_data.data.motor_temperature > 70)
+	{
+		driver->error_code = ERROR_MOTOR_OVERTEMP;
+	}
+	else if (driver->tpdo2_data.data.current_demand > 100)
+	{
+		driver->error_code = ERROR_CURRENT;
+	}
+	else
+	{
+		driver->error_code = ERROR_NONE;
+	}
+
 }
 
 

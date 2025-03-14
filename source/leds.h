@@ -8,15 +8,17 @@
 #ifndef LEDS_H_
 #define LEDS_H_
 
+#include "common.h"
 #include "gpio.h"
 #include "drivers.h"
 #include "fsl_debug_console.h"
 
 
+
 //On Boards LEDS
-#define PIN_LED_RED     	PORTNUM2PIN(0,21)
-#define PIN_LED_GREEN     	PORTNUM2PIN(0,22)
-#define PIN_LED_BLUE     	PORTNUM2PIN(0,18)
+//#define PIN_LED_RED     	PORTNUM2PIN(0,21)
+//#define PIN_LED_GREEN     	PORTNUM2PIN(0,22)
+//#define PIN_LED_BLUE     	PORTNUM2PIN(0,18)
 
 //Cockpit LEDS
 #define PIN_LED_START    PORTNUM2PIN(0, 2)

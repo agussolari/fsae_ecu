@@ -46,54 +46,67 @@ void init_buttons(void) {
 // acelerador y freno en variables globales
 
 
-#define FILTER_SIZE 10
-
-
-uint16_t tps1_values[FILTER_SIZE] = {0};
-uint16_t tps2_values[FILTER_SIZE] = {0};
-uint8_t tps_index = 0;
-
-#define ALPHA 0.1  // Smoothing factor for the EMA filter
-
-uint16_t tps1_filtered = 0;
-uint16_t tps2_filtered = 0;
-
-uint16_t moving_average(uint16_t* values) {
-    uint32_t sum = 0;
-    for (uint8_t i = 0; i < FILTER_SIZE; i++) {
-        sum += values[i];
-    }
-    return (uint16_t)(sum / FILTER_SIZE);
-}
-
-
 
 void run_sensors(void) {
-    // Read the brake value and scale it to a range of 0 to 1000
-    sensor_values.brake = (uint16_t)(((float)adcReadChannelBlocking(ADC_CHANNEL_BRAKE) / ADC_MAX_VALUE) * 1000);
+	// Read the TPS values
+	uint16_t raw_tps1 = adcReadChannelBlocking(ADC_CHANNEL_TPS1);
+	uint16_t raw_tps2 = adcReadChannelBlocking(ADC_CHANNEL_TPS2);
 
-    sensor_values.direction = (uint16_t)(((float)adcReadChannelBlocking(ADC_CHANNEL_DIRECTION) / ADC_MAX_VALUE) * 1000);
+	tps_data.tps_time_stamp = millis();
 
-    // Read the TPS values
-    uint16_t raw_tps1 = adcReadChannelBlocking(ADC_CHANNEL_TPS1);
-    uint16_t raw_tps2 = adcReadChannelBlocking(ADC_CHANNEL_TPS2);
+	// Map the TPS1 value
+	if (raw_tps1 <= tps_data.tps1_min_value) {
+		tps_data.tps1_value = 0;
+	} else if (raw_tps1 >= tps_data.tps1_max_value) {
+		tps_data.tps1_value = 1000;
+	} else {
+		tps_data.tps1_value = (uint16_t) (((float) (raw_tps1 - tps_data.tps1_min_value)
+				/ (tps_data.tps1_max_value - tps_data.tps1_min_value)) * 1000);
+	}
 
-    // Map the TPS1 value
-    if (raw_tps1 <= tps_data.tps1_min_value) {
-        tps_data.tps1_value = 0;
-    } else if (raw_tps1 >= tps_data.tps1_max_value) {
-        tps_data.tps1_value = 1000;
-    } else {
-        tps_data.tps1_value = (uint16_t)(((float)(raw_tps1 - tps_data.tps1_min_value) / (tps_data.tps1_max_value - tps_data.tps1_min_value)) * 1000);
-    }
+	// Map the TPS2 value (inverted)
+	if (raw_tps2 <= tps_data.tps2_min_value) {
+		tps_data.tps2_value = 1000;
+	} else if (raw_tps2 >= tps_data.tps2_max_value) {
+		tps_data.tps2_value = 0;
+	} else {
+		tps_data.tps2_value = (uint16_t) (((float) (tps_data.tps2_max_value - raw_tps2)
+				/ (tps_data.tps2_max_value - tps_data.tps2_min_value)) * 1000);
+	}
 
-    // Map the TPS2 value similarly if needed
-    if (raw_tps2 <= 14000) {
-        tps_data.tps2_value = 0;
-    } else if (raw_tps2 >= 18352) {
-        tps_data.tps2_value = 1000;
-    } else {
-        tps_data.tps2_value = (uint16_t)(((float)(raw_tps2 - 14000) / (18352 - 14000)) * 1000);
-    }
+
 }
+
+bool check_implausibility_tps(void)
+{
+    // Calculate the absolute difference between the two TPS values
+    uint16_t tps_difference =  abs(tps_data.tps1_value - tps_data.tps2_value);
+
+    // Check if the difference exceeds the threshold
+    if (tps_difference > PEDAL_TRAVEL_THRESHOLD)
+    {
+        // Get the current time in milliseconds
+        uint32_t current_time = millis();
+
+        // Check if this is the first time implausibility is detected
+        if (tps_data.implausibility_start_time == 0)
+        {
+        	tps_data.implausibility_start_time = current_time;
+        }
+        else if ((current_time - tps_data.implausibility_start_time) > IMPLAUSIBILITY_THRESHOLD)
+        {
+            // Implausibility has persisted for more than 100 milliseconds
+            return true;
+        }
+    }
+    else
+    {
+        // Reset the implausibility start time if the difference is within the threshold
+    	tps_data.implausibility_start_time = 0;
+    }
+
+    return false;
+}
+
+
 

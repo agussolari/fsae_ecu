@@ -13,8 +13,10 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "common.h"
 #include "fsl_debug_console.h"
 #include "millis.h"
+
 
 
 /*******************************************************************************
@@ -42,7 +44,7 @@
 #define GPIO_CANT_MODES	         5
 
 
-#define LED_ACTIVE			LOW
+#define LED_ACTIVE			HIGH
 
 
 // Digital values
@@ -51,7 +53,6 @@
 #define HIGH    1
 #endif // LOW
 
-#define DEBOUNCE_DELAY_MS 50
 
 
 /*******************************************************************************

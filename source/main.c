@@ -40,8 +40,7 @@
 void update_data(void);
 void update_driver_leds(void);
 
-driver_t driver_1;
-driver_t driver_2;
+#define DISABLE_PRINTF
 
 
 
@@ -78,9 +77,9 @@ int main(void)
 	init_drivers(&driver_2);
 
 	//Initialice periodic interrupt for uart and led control and lora
-	SysTick_RegisterCallback(update_data, 200);
-	SysTick_RegisterCallback(update_driver_leds, 200);
-	SysTick_RegisterCallback(run_sensors, 100);
+	SysTick_RegisterCallback(update_data, 100);
+	SysTick_RegisterCallback(update_driver_leds, 100);
+	SysTick_RegisterCallback(run_sensors, 10);
 
 
 	PRINTF("Init complete\n");
@@ -90,6 +89,19 @@ int main(void)
 
        update_state_machine(&driver_1);
        update_state_machine(&driver_2);
+
+
+       driver_1.time_stamp = millis();
+       driver_2.time_stamp = millis();
+
+//    	gpioWrite(PIN_LED_G1, LED_ACTIVE);
+//    	gpioWrite(PIN_LED_G2, LED_ACTIVE);
+//    	gpioWrite(PIN_LED_A1, LED_ACTIVE);
+//    	gpioWrite(PIN_LED_A2, LED_ACTIVE);
+//    	gpioWrite(PIN_LED_A3, LED_ACTIVE);
+//    	gpioWrite(PIN_LED_R1, LED_ACTIVE);
+//    	gpioWrite(PIN_LED_R2, LED_ACTIVE);
+
 
     }
 }
@@ -127,6 +139,8 @@ void update_driver_leds(void)
 //#include "fsl_iap.h"
 //#include "fsl_iap_ffr.h"
 //#include "fsl_common.h"
+//#include "gpio.h"
+//#include "leds.h"
 //
 //
 //
@@ -145,6 +159,9 @@ void update_driver_leds(void)
 //	BOARD_BootClockFROHF96M();
 //	SystemCoreClockUpdate();
 //	BOARD_InitDebugConsole();
+//
+//	gpioMode(PIN_LED_A2, GPIO_OUTPUT);
+//	gpioWrite(PIN_LED_A2, LED_ACTIVE);
 //
 //	init_flash();
 //

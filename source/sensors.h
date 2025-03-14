@@ -8,15 +8,18 @@
 #ifndef SENSORS_H_
 #define SENSORS_H_
 
+#include "common.h"
 #include "adc.h"
 #include "fsl_debug_console.h"
 #include "gpio.h"
+#include "millis.h"
 #include "drivers.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
+
 
 
 
@@ -29,13 +32,18 @@
 
 #define START_GPIO_PORT 		PORTNUM2PIN(1, 29)
 #define DRIVE_GPIO_PORT 		PORTNUM2PIN(0, 14)
-#define STOP_GPIO_PORT 			PORTNUM2PIN(1, 9)
+#define STOP_GPIO_PORT 			PORTNUM2PIN(0, 0)
 
-#define CALIBRATION_GPIO_PORT 	PORTNUM2PIN(0, 24)
+#define CALIBRATION_GPIO_PORT 	PORTNUM2PIN(1, 3)
+
+#define IMPLAUSIBILITY_THRESHOLD 100 // 100 milliseconds
+#define PEDAL_TRAVEL_THRESHOLD 100 // 10% of 1000
+
 
 void init_sensor(void);
 void init_buttons(void);
 void run_sensors(void);
+bool check_implausibility_tps(void);
 
 
 typedef struct {
@@ -54,6 +62,8 @@ typedef struct {
     uint16_t tps1_max_value;
     uint16_t tps2_min_value;
     uint16_t tps2_max_value;
+
+    uint32_t tps_time_stamp;
 } tps_data_t;
 
 extern tps_data_t tps_data;

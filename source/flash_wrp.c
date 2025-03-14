@@ -109,16 +109,31 @@ void program_flash(uint32_t *data, uint32_t size)
 
 void read_flash(uint32_t *data, uint32_t size)
 {
-
-	PRINTF("Reading flash memory...\r\n");
-	/* Verify programming by reading back from flash directly */
-    for (uint32_t i = 0; i < size; i++)
+    /* Check if the flash page is blank before reading to avoid hardfault. */
+    status = FLASH_VerifyErase(&flashInstance, destAdrss, PflashPageSize);
+    if (status == kStatus_Success)
     {
-    	data[i] = *(volatile uint32_t *)(destAdrss + i * 4);
-    	PRINTF("0x%x ", data[i]);
+        PRINTF("Error: trying to Read blank flash page!\n");
+		for (uint32_t i = 0; i < size; i++)
+		{
+			data[i] = 0;
+		}
+		return;
     }
-    PRINTF("\r\n Successfully Programmed and Verified Location 0x%x -> 0x%x \r\n", destAdrss,
-           (destAdrss + size ));
+    else
+    {
+    	PRINTF("Reading flash memory...\r\n");
+    	/* Verify programming by reading back from flash directly */
+        for (uint32_t i = 0; i < size; i++)
+        {
+        	data[i] = *(volatile uint32_t *)(destAdrss + i * 4);
+        	PRINTF("0x%x ", data[i]);
+        }
+        PRINTF("\r\n Successfully Programmed and Verified Location 0x%x -> 0x%x \r\n", destAdrss,
+               (destAdrss + size ));
+    }
+
+
 
 }
 
@@ -151,7 +166,5 @@ void verify_status(status_t status) {
 void error_trap(void)
 {
     PRINTF("\r\n\r\n\r\n\t---- HALTED DUE TO FLASH ERROR! ----");
-    while (1)
-    {
-    }
+
 }

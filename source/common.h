@@ -13,11 +13,20 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdio.h> // Include the standard library header
 
 
 /*******************************************************************************
  * CONSTANT AND MACRO DEFINITIONS USING #DEFINE
  ******************************************************************************/
+
+
+#define DISABLE_PRINTF
+
+#ifdef DISABLE_PRINTF
+#define printf(...) ((void)0)
+#endif
+
 
 #define BITS_IN_BYTE    8
 

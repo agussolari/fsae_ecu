@@ -18,6 +18,10 @@
    </preferences>
    <tools>
       <pins name="Pins" version="16.0" enabled="true" update_project_code="true">
+         <generated_project_files>
+            <file path="board/pin_mux.c" update_enabled="true"/>
+            <file path="board/pin_mux.h" update_enabled="true"/>
+         </generated_project_files>
          <pins_profile>
             <processor_version>16.3.0</processor_version>
             <pin_labels>
@@ -49,6 +53,11 @@
                      </feature>
                   </dependency>
                   <dependency resourceType="Peripheral" resourceId="CAN0" description="Peripheral CAN0 signals are routed in the Pins Tool, but the peripheral is not initialized in the Peripherals Tool." problem_level="1" source="Pins:BOARD_InitPins">
+                     <feature name="initialized" evaluation="equal">
+                        <data>true</data>
+                     </feature>
+                  </dependency>
+                  <dependency resourceType="Peripheral" resourceId="n/a" description="Peripheral n/a signals are routed in the Pins Tool, but the peripheral is not initialized in the Peripherals Tool." problem_level="1" source="Pins:BOARD_InitPins">
                      <feature name="initialized" evaluation="equal">
                         <data>true</data>
                      </feature>
@@ -97,11 +106,16 @@
                   </pin>
                   <pin peripheral="CAN0" signal="CAN_RD" pin_num="42" pin_signal="PIO1_3/CAN0_RD/SCT0_OUT4/HS_SPI_MISO/PLU_OUT6"/>
                   <pin peripheral="CAN0" signal="CAN_TD" pin_num="41" pin_signal="PIO1_2/CAN0_TD/CTIMER0_MAT3/SCT_GPI6/HS_SPI_SCK/PLU_OUT5"/>
+                  <pin peripheral="n/a" signal="disabled" pin_num="46" pin_signal="PIO0_13/FC1_CTS_SDA_SSEL0/UTICK_CAP0/CT_INP0/SCT_GPI0/FC1_RXD_SDA_MOSI_DATA/PLU_IN0/SECURE_GPIO0_13"/>
                </pins>
             </function>
          </functions_list>
       </pins>
       <clocks name="Clocks" version="14.0" enabled="true" update_project_code="true">
+         <generated_project_files>
+            <file path="board/clock_config.c" update_enabled="true"/>
+            <file path="board/clock_config.h" update_enabled="true"/>
+         </generated_project_files>
          <clocks_profile>
             <processor_version>16.3.0</processor_version>
          </clocks_profile>
@@ -233,12 +247,14 @@
          </clock_configurations>
       </clocks>
       <dcdx name="DCDx" version="3.0" enabled="false" update_project_code="true">
+         <generated_project_files/>
          <dcdx_profile>
             <processor_version>N/A</processor_version>
          </dcdx_profile>
          <dcdx_configurations/>
       </dcdx>
       <periphs name="Peripherals" version="15.0" enabled="false" update_project_code="true">
+         <generated_project_files/>
          <peripherals_profile>
             <processor_version>N/A</processor_version>
          </peripherals_profile>
@@ -246,6 +262,7 @@
          <components/>
       </periphs>
       <tee name="TEE" version="7.0" enabled="false" update_project_code="true">
+         <generated_project_files/>
          <tee_profile>
             <processor_version>N/A</processor_version>
          </tee_profile>

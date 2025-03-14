@@ -8,6 +8,7 @@
 #ifndef FLASH_WRP_H_
 #define FLASH_WRP_H_
 
+#include "common.h"
 #include "fsl_debug_console.h"
 #include "pin_mux.h"
 #include "board.h"

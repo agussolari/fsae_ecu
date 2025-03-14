@@ -224,4 +224,3 @@ void BOARD_BootClockPLL96M(void)
     SystemCoreClock = BOARD_BOOTCLOCKPLL96M_CORE_CLOCK;
 #endif
 }
-

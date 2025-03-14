@@ -28,6 +28,9 @@
 #define BITS_PER_BYTE               8
 
 
+// En un archivo de cabecera común, por ejemplo, `common.h`
+
+
 #ifndef POSITIVE
 enum {POSITIVE, NEGATIVE};
 #endif // POSITIVE

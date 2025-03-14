@@ -33,6 +33,7 @@
 
 
 typedef enum {
+	STATE_IDLE,
 	STATE_RESET_NODE,
     STATE_POWER_ON_RESET,
     STATE_INITIALIZATION,
@@ -46,6 +47,7 @@ typedef enum {
 	STATE_WAIT_DRIVE,
     STATE_DRIVE,
     STATE_STOPPED,
+	STATE_ERROR,
 } driver_state_t;
 
 typedef enum {
@@ -54,6 +56,7 @@ typedef enum {
 	NMT_STATE_OPERATIONAL,
 	NMT_STATE_DRIVE,
 	NMT_STATE_STOPPED,
+	NMT_STATE_ERROR,
 } nmt_state_t;
 
 typedef enum {
@@ -61,8 +64,10 @@ typedef enum {
 	ERROR_GENERIC,
 	ERROR_CURRENT,
 	ERROR_VOLTAGE,
-	ERROR_TEMPERATURE,
+	ERROR_MOTOR_OVERTEMP,
+	ERROR_CONTROLLER_OVERTEMP,
 	ERROR_COMMUNICATION,
+	ERROR_IMPLAUSIBILITY,
 	ERROR_DEVICE,
 	ERROR_SOFTWARE,
 	ERROR_INTERNAL,
@@ -85,7 +90,9 @@ typedef enum {
 	MODE_ALIGNMENT = -4
 } mode_t;
 
+#include "common.h"
 #include "leds.h"
+#include <stdio.h>
 #include <stdint.h>
 #include "can.h"
 #include "sensors.h"
@@ -94,6 +101,7 @@ typedef enum {
 #include "millis.h"
 #include "uart.h"
 #include "flash_wrp.h"
+
 
 
 
@@ -171,12 +179,20 @@ typedef struct {
     driver_state_t state;
     nmt_state_t nmt_state;
     uint16_t error_code;
+
     uint32_t time_stamp;
-    uint32_t sensor_time_stamp;
+    uint32_t error_time_stamp;
 
     mode_t mode;
 
     bool align;
+    bool calibration_needed;
+
+    //TPS Data
+    uint16_t tps_value;
+    uint16_t last_tps_value;
+    uint32_t tps_time_stamp;
+    uint32_t last_tps_time_stamp;
 
        //TPDO data
     tpdo1_data_t tpdo1_data;
@@ -188,16 +204,10 @@ typedef struct {
     pdo1_data_t pdo1_data;
     pdo2_data_t pdo2_data;
 
-
-    int32_t prev_throttle; // Add previous throttle value
-    int16_t prev_torque;   // Add previous torque value
-    bool zero_message_sent; // Add flag for zero message sent
-
-    bool calibration_needed;
-
 } driver_t;
 
-
+extern driver_t driver_1;
+extern driver_t driver_2;
 
 
 void init_drivers(driver_t* driver);

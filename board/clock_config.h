@@ -118,4 +118,3 @@ void BOARD_BootClockPLL96M(void);
 #endif /* __cplusplus*/
 
 #endif /* _CLOCK_CONFIG_H_ */
-
