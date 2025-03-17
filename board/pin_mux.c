@@ -83,8 +83,9 @@ void BOARD_InitPins(void)
 
 	IOCON_PinMuxSet(IOCON, 0, 23, adc_config); //TPS1
 	IOCON_PinMuxSet(IOCON, 0, 16, adc_config); //TPS2
-	IOCON_PinMuxSet(IOCON, 0, 31, adc_config); //BREAK
-	IOCON_PinMuxSet(IOCON, 1, 0 , adc_config); //DIR
+	IOCON_PinMuxSet(IOCON, 0, 31, adc_config); //FRONT BRAKE
+	IOCON_PinMuxSet(IOCON, 1, 0 , adc_config); //REAR BRAKE
+	IOCON_PinMuxSet(IOCON, 0, 15, adc_config); //DIRECTION
 
 //SWO PIN
     const uint32_t port0_pin10_config = (/* Pin is configured as SWO */

@@ -179,11 +179,11 @@ typedef struct {
     driver_state_t state;
     nmt_state_t nmt_state;
     uint16_t error_code;
+    mode_t mode;
 
     uint32_t time_stamp;
     uint32_t error_time_stamp;
 
-    mode_t mode;
 
     bool align;
     bool calibration_needed;

@@ -50,17 +50,28 @@ void init_drivers(driver_t* driver)
 	}
 
 	//Read flash memory and save the calibration values
-	uint32_t data[4];
-	read_flash(data, 4);
+	uint32_t data[7];
+	read_flash(data, 7);
 
 	tps_data.tps1_min_value = (uint16_t)data[0];
 	tps_data.tps1_max_value = (uint16_t)data[1];
 	tps_data.tps2_min_value = (uint16_t)data[2];
 	tps_data.tps2_max_value = (uint16_t)data[3];
 
+	front_break_data.calibration_break_value = (uint16_t)data[4];
+	rear_break_data.calibration_break_value = (uint16_t)data[5];
+
+	direction_data.calibration_direction_value = (uint16_t)data[6];
+
 	//Initialize the calibration flag
-	if (tps_data.tps1_min_value == 0 && tps_data.tps1_max_value == 0
-			&& tps_data.tps2_min_value == 0 && tps_data.tps2_max_value == 0) {
+	if (tps_data.tps1_min_value == 0
+			|| tps_data.tps1_max_value == 0
+			|| tps_data.tps2_min_value == 0
+			|| tps_data.tps2_max_value == 0
+			|| front_break_data.calibration_break_value == 0
+			|| rear_break_data.calibration_break_value == 0
+			|| direction_data.calibration_direction_value == 0)
+	{
 		driver->calibration_needed = true;
 	} else {
 		driver->calibration_needed = false;
@@ -188,9 +199,23 @@ void update_state_machine(driver_t* driver)
                 uint16_t tps1_min = adcReadChannelBlocking(ADC_CHANNEL_TPS1);
                 uint16_t tps2_min = adcReadChannelBlocking(ADC_CHANNEL_TPS2);
 
+                uint16_t front_brake = adcReadChannelBlocking(ADC_CHANNEL_FRONT_BRAKE);
+                uint16_t rear_brake = adcReadChannelBlocking(ADC_CHANNEL_REAR_BRAKE);
+
+                uint16_t direction = adcReadChannelBlocking(ADC_CHANNEL_DIRECTION);
+
+
             	tps_data.tps1_min_value = tps1_min;
             	tps_data.tps2_min_value = tps2_min;
             	PRINTF("TPS 0% value saved TPS1: %d TPS2: %d\n", tps1_min, tps2_min);
+
+            	//Save the calibration values in flash memory
+            	front_break_data.calibration_break_value = front_brake;
+            	rear_break_data.calibration_break_value = rear_brake;
+            	PRINTF("Brake calibration value saved Front: %d Rear: %d\n", front_brake, rear_brake);
+
+            	direction_data.calibration_direction_value = direction;
+            	PRINTF("Direction calibration value saved: %d\n", direction);
 
             	driver->state = STATE_CALIBRATION_2;
             	break;
@@ -226,6 +251,12 @@ void update_state_machine(driver_t* driver)
 			data[1] = (uint32_t)tps_data.tps1_max_value;
 			data[2] = (uint32_t)tps_data.tps2_min_value;
 			data[3] = (uint32_t)tps_data.tps2_max_value;
+
+			data[4] = (uint32_t)front_break_data.calibration_break_value;
+			data[5] = (uint32_t)rear_break_data.calibration_break_value;
+
+			data[6] = (uint32_t)direction_data.calibration_direction_value;
+
 			program_flash(data, sizeof(data));
 
 			driver->calibration_needed = false;
@@ -620,38 +651,37 @@ bool send_sdo_mode_of_operation(int8_t mode, uint16_t node_id)
 }
 
 
-void send_motor_data_uart(driver_t *driver)
-{
+
+void send_motor_data_uart(driver_t *driver) {
 	char buffer[64];
 
 	int len = snprintf(buffer, sizeof(buffer),
-	            ":%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d:",
-	            driver->node_id,
-	            driver->state,
-	            driver->nmt_state,
-	            driver->mode,
+			":%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d:",
+			driver->node_id, driver->state, driver->nmt_state, driver->mode,
 
-	            driver->pdo1_data.data.target_torque,
-	            driver->pdo1_data.data.target_velocity,
+			driver->pdo1_data.data.target_torque,
+			driver->pdo1_data.data.target_velocity,
 
-	            driver->tpdo1_data.data.actual_torque,
+			driver->tpdo1_data.data.actual_torque,
 
-	            driver->tpdo2_data.data.controller_temperature,
-	            driver->tpdo2_data.data.current_demand,
+			driver->tpdo2_data.data.controller_temperature,
+			driver->tpdo2_data.data.current_demand,
 
-	            driver->tpdo4_data.data.torque_regulator,
-	            driver->tpdo4_data.data.actual_velocity,
-	            driver->tpdo4_data.data.motor_temperature,
+			driver->tpdo4_data.data.torque_regulator,
+			driver->tpdo4_data.data.actual_velocity,
+			driver->tpdo4_data.data.motor_temperature,
 
-	            driver->error_code,
+			driver->error_code,
 
-	            tps_data.tps1_value,
-	            tps_data.tps2_value
-	            );
+			tps_data.tps1_value, tps_data.tps2_value,
 
+			driver->tps_value,
 
+			front_break_data.brake_value, rear_break_data.brake_value,
 
-	// Enviar los datos por UART
+			direction_data.direction_value);
+
+	// Send the data over UART
 	uartWriteMsg(buffer, len);
 }
 

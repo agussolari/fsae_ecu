@@ -1,0 +1,7 @@
+ExitOnError 1
+r
+h
+loadfile "G:\Mi unidad\ITBA - Agus\FSAE\fsae_ecu\Debug\fsae_ecu.hex"
+qc
+
+qc
