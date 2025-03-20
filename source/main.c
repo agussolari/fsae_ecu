@@ -40,13 +40,13 @@
 void update_data(void);
 void update_driver_leds(void);
 
-#define DISABLE_PRINTF
 
 
 
 int main(void)
 {
 	/* Init board hardware. */
+
 
 
 	BOARD_InitPins();
@@ -62,10 +62,14 @@ int main(void)
 	uartInit();		//INIT UART
 	init_flash();	//INIT FLASH MEMORY
 	millis_init();	//INIT MILLIS
+	SysTick_Init();	//INIT SYSTICK
 
 
-
-	SysTick_Init();
+	//Initialice periodic interrupts
+	SysTick_RegisterCallback(update_data, 100);
+	SysTick_RegisterCallback(update_driver_leds, 100);
+	SysTick_RegisterCallback(recive_pdo_message, 100);
+	SysTick_RegisterCallback(run_sensors, 10);
 
 
 	//Init drivers
@@ -73,20 +77,38 @@ int main(void)
 	driver_2.node_id = NODE_ID_2;
 
 
-	init_drivers(&driver_1);
-	init_drivers(&driver_2);
+	init_drivers(&driver_1);	//INIT DRIVER 1
+	init_drivers(&driver_2);	//INIT DRIVER 2
+	boot_drivers(); //BOOT BOTH DRIVERS
 
-	//Initialice periodic interrupt for uart and led control and lora
-	SysTick_RegisterCallback(update_data, 100);
-	SysTick_RegisterCallback(update_driver_leds, 100);
-	SysTick_RegisterCallback(run_sensors, 10);
+
+	flash_read_calibration_values();	//READ CALIBRATION VALUES FROM FLASH
+
 
 
 	PRINTF("Init complete\n");
 
+
     while (1)
     {
 
+//    	can_msg_t msg;
+//    	if(can_isNewRxMsg())
+//    	{
+//    		can_readRxMsg(&msg);
+//    		PRINTF("%d %d ", msg.id, msg.len);
+//			for (int i = 0; i < msg.len; i++) {
+//				PRINTF("%d ", msg.data[i]);
+//			}
+//			PRINTF("\n");
+//    	}
+//
+//    	if (gpioRead(STOP_GPIO_PORT))
+//    	{
+//			PRINTF("STOP\n");
+//			send_nmt_command(NMT_CMD_RESET_NODE, NODE_ID_1);
+//			send_nmt_command(NMT_CMD_RESET_NODE, NODE_ID_2);
+//		}
        update_state_machine(&driver_1);
        update_state_machine(&driver_2);
 
@@ -94,13 +116,8 @@ int main(void)
        driver_1.time_stamp = millis();
        driver_2.time_stamp = millis();
 
-//    	gpioWrite(PIN_LED_G1, LED_ACTIVE);
-//    	gpioWrite(PIN_LED_G2, LED_ACTIVE);
-//    	gpioWrite(PIN_LED_A1, LED_ACTIVE);
-//    	gpioWrite(PIN_LED_A2, LED_ACTIVE);
-//    	gpioWrite(PIN_LED_A3, LED_ACTIVE);
-//    	gpioWrite(PIN_LED_R1, LED_ACTIVE);
-//    	gpioWrite(PIN_LED_R2, LED_ACTIVE);
+    	//PRINTF ADC VALUES
+
 
 
     }
@@ -125,49 +142,3 @@ void update_driver_leds(void)
 
 
 
-
-
-
-
-
-
-////FLASH EXAMPLE
-//#include "flash_wrp.h"
-//#include "fsl_debug_console.h"
-//#include "pin_mux.h"
-//#include "board.h"
-//#include "fsl_iap.h"
-//#include "fsl_iap_ffr.h"
-//#include "fsl_common.h"
-//#include "gpio.h"
-//#include "leds.h"
-//
-//
-//
-//uint32_t s_buffer[BUFFER_LEN] = {1, 2, 3, 4};
-//
-//int main(void)
-//{
-//
-////    /* attach 12 MHz clock to FLEXCOMM0 (debug console) */
-////    CLOCK_AttachClk(BOARD_DEBUG_UART_CLK_ATTACH);
-////    /* enable clock for GPIO*/
-////    CLOCK_EnableClock(kCLOCK_Gpio0);
-////    CLOCK_EnableClock(kCLOCK_Gpio1);
-//
-//	BOARD_InitPins();
-//	BOARD_BootClockFROHF96M();
-//	SystemCoreClockUpdate();
-//	BOARD_InitDebugConsole();
-//
-//	gpioMode(PIN_LED_A2, GPIO_OUTPUT);
-//	gpioWrite(PIN_LED_A2, LED_ACTIVE);
-//
-//	init_flash();
-//
-////	program_flash(s_buffer, sizeof(s_buffer));
-//
-//	uint32_t data[BUFFER_LEN];
-//	read_flash(data, BUFFER_LEN);
-//
-//}

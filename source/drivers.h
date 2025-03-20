@@ -211,7 +211,11 @@ extern driver_t driver_2;
 
 
 void init_drivers(driver_t* driver);
+void boot_drivers(void);
+
 void update_state_machine(driver_t* driver);
+void recive_pdo_message(void);
+
 void send_motor_data_uart(driver_t* driver);
 
 

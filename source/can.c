@@ -12,7 +12,6 @@
 
 #include "fsl_mcan.h"
 #include "fsl_iocon.h"
-#include "fsl_debug_console.h"
 
 /*******************************************************************************
  * CONSTANT AND MACRO DEFINITIONS USING #DEFINE
@@ -98,7 +97,6 @@ static bool canInit = false;
 
 bool can_init(uint32_t baudrate)
 {
-	PRINTF("Starting CAN...\n");
 	if (canInit)
 		return false;
 
@@ -171,7 +169,6 @@ bool can_init(uint32_t baudrate)
 
     canInit = true;
 
-    PRINTF("CAN started\n");
 
     return true;
 }
@@ -200,18 +197,6 @@ bool can_readRxMsg(can_msg_t* msg)
 	return true;
 }
 
-//bool can_readRxMsg(can_msg_t* msg)
-//{
-//    mcan_rx_buffer_frame_t rxBuffer = {.size = CAN_DATASIZE, .data = msg->data};
-//    if (myMCAN_ReadRxFifo(CAN0, 0, &rxBuffer) != kStatus_Success)
-//        return false;
-//
-//    msg->id = rxBuffer.id >> STDID_OFFSET; // se guarda left-justified en 29bits o 11bits
-//    msg->len = rxBuffer.dlc;
-//    msg->rtr = (rxBuffer.rtr == kMCAN_FrameTypeData) ? 0 : 1;
-//
-//    return true;
-//}
 /******************* TX *******************/
 
 bool can_isTxReady(void)
@@ -243,24 +228,6 @@ bool can_sendTxMsg(const can_msg_t* msg)
     return true;
 }
 
-//bool can_sendTxMsg(const can_msg_t* msg)
-//{
-//    if (CAN0->TXFQS & CAN_TXFQS_TFQF_MASK)
-//        return false; // TX FIFO está FULL
-//
-//    uint8_t idx = (CAN0->TXFQS & CAN_TXFQS_TFQPI_MASK) >> CAN_TXFQS_TFQPI_SHIFT;
-//
-//    mcan_tx_buffer_frame_t txBuffer = {.xtd=kMCAN_FrameIDStandard, .rtr=kMCAN_FrameTypeData, .fdf=false, .brs=false, .efc=false, .size=8};
-//    txBuffer.id = msg->id << STDID_OFFSET;
-//    txBuffer.dlc = msg->len;
-//    txBuffer.data = (uint8_t*) (msg->data);
-//    if (MCAN_WriteTxBuffer(CAN0, idx, &txBuffer) != kStatus_Success)
-//        return false; // falló la escritura
-//
-//    CAN0->TXBAR = (1<<idx);
-//
-//    return true;
-//}
 
 
 /*******************************************************************************
@@ -365,11 +332,6 @@ void send_can_message(uint16_t id, uint8_t *data, uint8_t length) {
     while (!can_isTxReady());
     can_sendTxMsg(&msg);
 
-//    PRINTF("SEND: %d %d ", id, length);
-//	for (int i = 0; i < length; i++) {
-//		PRINTF("%d", data[i]);
-//	}
-//	PRINTF("\n");
 
 }
 

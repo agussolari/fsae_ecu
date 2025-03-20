@@ -11,7 +11,6 @@
  * INCLUDE HEADER FILES
  ******************************************************************************/
 
-#include "common.h"
 #include <stdint.h>
 #include <stdbool.h>
 

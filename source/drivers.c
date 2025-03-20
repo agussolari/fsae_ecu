@@ -10,22 +10,19 @@ driver_t driver_1;
 driver_t driver_2;
 
 static bool flag = false;
-static bool button_pressed = false;
+static bool button_pressed_calibration = false;
+static bool button_pressed_stop = false;
 
 
 
 void run_motors (driver_t* driver);
-
-void recive_pdo_message(driver_t* driver);
 void send_pdo_message(driver_t* driver);
-
 bool send_controlword(uint8_t controlword, uint16_t node_id);
-
 bool send_sdo_mode_of_operation(int8_t mode, uint16_t node_id);
-
-bool check_alignment_status(driver_t* driver);
-void align_motors(uint16_t node_id);
 void handle_errors(driver_t *driver);
+void set_calibration_1(void);
+void set_calibration_2(void);
+
 
 /**
  * @brief Initialize the drivers
@@ -33,10 +30,15 @@ void handle_errors(driver_t *driver);
  */
 void init_drivers(driver_t* driver)
 {
-	driver->state = STATE_RESET_NODE;
-
 	driver->time_stamp = 0;
 	driver->error_time_stamp = 0;
+    driver->mode = MODE_TORQUE;
+
+    driver->align = true;
+	driver->calibration_needed = true;
+
+    driver->state = STATE_POWER_ON_RESET;
+    driver->nmt_state = NMT_STATE_BOOTUP;
 
 
 	//Clean data of the PDO and TPDO
@@ -48,38 +50,69 @@ void init_drivers(driver_t* driver)
 		driver->pdo1_data.b[i] = 0;
 		driver->pdo2_data.b[i] = 0;
 	}
-
-	//Read flash memory and save the calibration values
-	uint32_t data[7];
-	read_flash(data, 7);
-
-	tps_data.tps1_min_value = (uint16_t)data[0];
-	tps_data.tps1_max_value = (uint16_t)data[1];
-	tps_data.tps2_min_value = (uint16_t)data[2];
-	tps_data.tps2_max_value = (uint16_t)data[3];
-
-	front_break_data.calibration_break_value = (uint16_t)data[4];
-	rear_break_data.calibration_break_value = (uint16_t)data[5];
-
-	direction_data.calibration_direction_value = (uint16_t)data[6];
-
-	//Initialize the calibration flag
-	if (tps_data.tps1_min_value == 0
-			|| tps_data.tps1_max_value == 0
-			|| tps_data.tps2_min_value == 0
-			|| tps_data.tps2_max_value == 0
-			|| front_break_data.calibration_break_value == 0
-			|| rear_break_data.calibration_break_value == 0
-			|| direction_data.calibration_direction_value == 0)
-	{
-		driver->calibration_needed = true;
-	} else {
-		driver->calibration_needed = false;
-	}
-
-
 }
 
+
+void boot_drivers(void)
+{
+	// Send the NMT command to reset the nodes
+    send_nmt_command(NMT_CMD_RESET_NODE, NODE_ID_1);
+    send_nmt_command(NMT_CMD_RESET_NODE, NODE_ID_2);
+
+    // Wait for the boot-up message
+    can_msg_t rx_msg;
+	while (1)
+	{
+		if (can_isNewRxMsg())
+		{
+			can_readRxMsg(&rx_msg);
+			if (rx_msg.id == (0x700 + NODE_ID_1) && rx_msg.data[1] == 0x00)
+			{
+				PRINTF("Boot-up message received from Node 1\n");
+				// Initialize the node
+	            if (send_sdo_write_command(0x40, 0x1810, 0x01, 0x00000000, NODE_ID_1))
+	            {
+	                PRINTF("Init SDO command sent from Node 1\n");
+	                driver_1.state = STATE_WAIT_START;
+	            }
+			}
+			if (rx_msg.id == (0x700 + NODE_ID_2) && rx_msg.data[1] == 0x00)
+		    {
+				PRINTF("Boot-up message received from Node 2\n");
+				// Initialize the node
+	            if (send_sdo_write_command(0x40, 0x1810, 0x01, 0x00000000, NODE_ID_1))
+	            {
+	                PRINTF("Init SDO command sent from Node 2\n");
+	                driver_2.state = STATE_WAIT_START;
+	            }
+			}
+		}
+		if (driver_1.state == STATE_WAIT_START && driver_2.state == STATE_WAIT_START)
+		{
+			// Both nodes are ready
+			driver_1.nmt_state = NMT_CMD_ENTER_PRE_OPERATIONAL;
+			driver_2.nmt_state = NMT_CMD_ENTER_PRE_OPERATIONAL;
+
+			PRINTF("Boot-up complete\n");
+
+			break;
+		}
+		if (gpioRead(STOP_GPIO_PORT))
+		{
+			button_pressed_stop = true;
+		}
+		else if (button_pressed_stop && gpioRead(STOP_GPIO_PORT) == FALSE)
+		{
+			button_pressed_stop = false;
+			//Send again the reset command
+			PRINTF("Resetting nodes\n");
+
+			send_nmt_command(NMT_CMD_RESET_NODE, NODE_ID_1);
+			send_nmt_command(NMT_CMD_RESET_NODE, NODE_ID_2);
+		}
+	}
+
+}
 
 /**
  * @brief Update the state machine
@@ -90,71 +123,15 @@ void update_state_machine(driver_t* driver)
 {
 
     switch (driver->state) {
-        case STATE_RESET_NODE:
-            send_nmt_command(0x81, driver->node_id);
-            PRINTF("Reset Node\n");
-
-            driver->align = true;
-            driver->state = STATE_POWER_ON_RESET;
-            driver->nmt_state = NMT_STATE_BOOTUP;
-            driver->mode = MODE_TORQUE;
-            break;
-
-        case STATE_POWER_ON_RESET:
-            if(can_isNewRxMsg())
-            {
-                can_msg_t rx_msg;
-            	can_readRxMsg(&rx_msg);
-
-                if ((rx_msg.id == (0x700 + driver->node_id)) && (rx_msg.data[1] == 0x00))
-                {
-                    PRINTF("Boot-up message received.\n");
-                    driver->nmt_state = NMT_STATE_BOOTUP;
-                    driver->state = STATE_INITIALIZATION;
-                    break;
-                }
-            }
-
-			if (gpioRead(CALIBRATION_GPIO_PORT) == FALSE)
-			{
-				button_pressed = true;
-			}
-			else if (button_pressed && gpioRead(CALIBRATION_GPIO_PORT) == TRUE)
-			{
-				button_pressed = false;
-
-				PRINTF("Calibration Mode\n");
-
-				driver_1.state = STATE_CALIBRATION_1;
-				driver_2.state = STATE_IDLE;
-
-				break;
-			}
-
-            if (gpioRead(STOP_GPIO_PORT))
-            {
-                driver->state = STATE_RESET_NODE;
-            }
-            break;
-
-        case STATE_INITIALIZATION:
-            if (send_sdo_write_command(0x40, 0x1810, 0x01, 0x00000000, driver->state))
-            {
-                PRINTF("Init SDO command sent\n");
-            }
-            driver->state = STATE_WAIT_START;
-            driver->nmt_state = NMT_STATE_PRE_OPERATIONAL;
-            PRINTF("Initialization Mode\n");
-
-            break;
 
         case STATE_WAIT_START:
             if (gpioRead(START_GPIO_PORT))
             {
             	if (driver->calibration_needed)
             	{
-					driver->state = STATE_CALIBRATION_1;
-					break;
+    				driver_1.state = STATE_CALIBRATION_1;
+    				driver_2.state = STATE_IDLE;
+    				break;
             	}
             	else
             	{
@@ -165,13 +142,11 @@ void update_state_machine(driver_t* driver)
             }
 			if (gpioRead(CALIBRATION_GPIO_PORT) == FALSE)
 			{
-				button_pressed = true;
+				button_pressed_calibration = true;
 			}
-			else if (button_pressed && gpioRead(CALIBRATION_GPIO_PORT) == TRUE)
+			else if (button_pressed_calibration && gpioRead(CALIBRATION_GPIO_PORT) == TRUE)
 			{
-				button_pressed = false;
-
-				PRINTF("Calibration Mode\n");
+				button_pressed_calibration = false;
 
 				driver_1.state = STATE_CALIBRATION_1;
 				driver_2.state = STATE_IDLE;
@@ -181,111 +156,45 @@ void update_state_machine(driver_t* driver)
 			break;
 
         case STATE_CALIBRATION_1:
-            //Map de 0 value
-            if (gpioRead(STOP_GPIO_PORT) == TRUE)
-            {
-            	driver->state = STATE_STOPPED;
-            	break;
-            }
-
             if (gpioRead(CALIBRATION_GPIO_PORT) == FALSE)
             {
-            	button_pressed = true;
+            	button_pressed_calibration = true;
             }
-            else if (button_pressed && gpioRead(CALIBRATION_GPIO_PORT) == TRUE)
+            else if (button_pressed_calibration && gpioRead(CALIBRATION_GPIO_PORT) == TRUE)
             {
-            	button_pressed = false;
-                // Read the TPS values
-                uint16_t tps1_min = adcReadChannelBlocking(ADC_CHANNEL_TPS1);
-                uint16_t tps2_min = adcReadChannelBlocking(ADC_CHANNEL_TPS2);
-
-                uint16_t front_brake = adcReadChannelBlocking(ADC_CHANNEL_FRONT_BRAKE);
-                uint16_t rear_brake = adcReadChannelBlocking(ADC_CHANNEL_REAR_BRAKE);
-
-                uint16_t direction = adcReadChannelBlocking(ADC_CHANNEL_DIRECTION);
-
-
-            	tps_data.tps1_min_value = tps1_min;
-            	tps_data.tps2_min_value = tps2_min;
-            	PRINTF("TPS 0% value saved TPS1: %d TPS2: %d\n", tps1_min, tps2_min);
-
-            	//Save the calibration values in flash memory
-            	front_break_data.calibration_break_value = front_brake;
-            	rear_break_data.calibration_break_value = rear_brake;
-            	PRINTF("Brake calibration value saved Front: %d Rear: %d\n", front_brake, rear_brake);
-
-            	direction_data.calibration_direction_value = direction;
-            	PRINTF("Direction calibration value saved: %d\n", direction);
-
-            	driver->state = STATE_CALIBRATION_2;
+            	button_pressed_calibration = false;
+            	set_calibration_1();
+            	break;
+            }
+            if (gpioRead(STOP_GPIO_PORT) == TRUE)
+            {
+            	driver->state = STATE_WAIT_START;
             	break;
             }
             break;
 
         case STATE_CALIBRATION_2:
-
-		//Map de 1000 value
-		if (gpioRead(STOP_GPIO_PORT) == TRUE) {
-			driver->state = STATE_STOPPED;
-			break;
-		}
-
-		if (gpioRead(CALIBRATION_GPIO_PORT) == FALSE) {
-			button_pressed = true;
-		} else if (button_pressed && gpioRead(CALIBRATION_GPIO_PORT) == TRUE) {
-			button_pressed = false;
-
-			// Read the TPS values
-			uint16_t tps1_max = adcReadChannelBlocking(ADC_CHANNEL_TPS1);
-			uint16_t tps2_max = adcReadChannelBlocking(ADC_CHANNEL_TPS2);
-			tps_data.tps1_max_value = tps1_max;
-			tps_data.tps2_max_value = tps2_max;
-
-			PRINTF("TPS 100% value saved TPS1: %d TPS2: %d\n", tps1_max, tps2_max);
-
-
-
-			//Save the calibration values in flash memory
-			uint32_t data[BUFFER_LEN];
-			data[0] = (uint32_t)tps_data.tps1_min_value;
-			data[1] = (uint32_t)tps_data.tps1_max_value;
-			data[2] = (uint32_t)tps_data.tps2_min_value;
-			data[3] = (uint32_t)tps_data.tps2_max_value;
-
-			data[4] = (uint32_t)front_break_data.calibration_break_value;
-			data[5] = (uint32_t)rear_break_data.calibration_break_value;
-
-			data[6] = (uint32_t)direction_data.calibration_direction_value;
-
-			program_flash(data, sizeof(data));
-
-			driver->calibration_needed = false;
-			PRINTF("Calibration complete\n");
-
-			if (driver->nmt_state == NMT_STATE_BOOTUP)
+			if (gpioRead(CALIBRATION_GPIO_PORT) == FALSE)
 			{
-				driver_1.state = STATE_RESET_NODE;
-				driver_2.state = STATE_RESET_NODE;
+				button_pressed_calibration = true;
 			}
-			else
+			else if (button_pressed_calibration && gpioRead(CALIBRATION_GPIO_PORT) == TRUE)
 			{
-				driver_1.state = STATE_WAIT_START;
-				driver_2.state = STATE_WAIT_START;
+				button_pressed_calibration = false;
+				set_calibration_2();
+				break;
 			}
-
-
-
+			if (gpioRead(STOP_GPIO_PORT) == TRUE)
+			{
+				driver->state = STATE_WAIT_START;
+				break;
+			}
 			break;
-		}
-		break;
 
 
 
 
         case STATE_START:
-            if (driver->align)
-            {
-
             	send_sdo_mode_of_operation(MODE_TORQUE, driver->node_id);
             	driver->mode = MODE_TORQUE;
             	PRINTF("Mode of operation set to MODE_TORQUE\n");
@@ -295,46 +204,7 @@ void update_state_machine(driver_t* driver)
 				send_nmt_command(NMT_CMD_ENTER_OPERATIONAL, driver->node_id);
 				driver->nmt_state = NMT_STATE_OPERATIONAL;
                 driver->state = STATE_WAIT_DRIVE;
-            }
-            else
-            {
-                align_motors(driver->node_id);
-                driver->mode = MODE_ALIGNMENT;
-                PRINTF("Aligning motors\n");
 
-                delay(1000);
-                send_nmt_command(NMT_CMD_ENTER_OPERATIONAL, driver->node_id);
-                PRINTF("Operational Mode for align\n");
-
-                driver->nmt_state = NMT_STATE_OPERATIONAL;
-                driver->state = STATE_ALIGNING_MOTORS;
-            }
-            break;
-
-
-        case STATE_ALIGNING_MOTORS:
-            if (check_alignment_status(driver))
-            {
-                PRINTF("Alignment Complete\n");
-                driver->align = true;
-
-//                send_sdo_mode_of_operation(MODE_TORQUE, driver->node_id);
-//                driver->mode = MODE_TORQUE;
-//                PRINTF("Mode of operation set to MODE_TORQUE\n");
-
-
-                PRINTF("Operational Mode\n");
-                send_nmt_command(0x01, driver->node_id);
-                driver->nmt_state = NMT_STATE_OPERATIONAL;
-
-                driver->state = STATE_WAIT_DRIVE;
-            }
-            else if (gpioRead(STOP_GPIO_PORT))
-            {
-                driver->state = STATE_STOPPED;
-                break;
-
-            }
             break;
 
 
@@ -351,8 +221,10 @@ void update_state_machine(driver_t* driver)
                 driver->state = STATE_DRIVE;
                 driver->nmt_state = NMT_STATE_DRIVE;
             }
-            if (gpioRead(STOP_GPIO_PORT)) {
+            if (gpioRead(STOP_GPIO_PORT))
+            {
                 driver->state = STATE_STOPPED;
+                break;
             }
             break;
 
@@ -360,18 +232,20 @@ void update_state_machine(driver_t* driver)
             run_motors(driver);
             handle_errors(driver);
 
-            if (gpioRead(STOP_GPIO_PORT)) {
+            if (gpioRead(STOP_GPIO_PORT))
+            {
                 driver->state = STATE_STOPPED;
+                break;
             }
 
             break;
 
         case STATE_STOPPED:
             PRINTF("Stop Mode\n");
-            send_nmt_command(0x80, driver->node_id);
-            driver->nmt_state = NMT_STATE_STOPPED;
+			send_nmt_command(NMT_CMD_ENTER_PRE_OPERATIONAL, driver->node_id);
 
-            driver->state = STATE_POWER_ON_RESET;
+            driver->nmt_state = NMT_STATE_PRE_OPERATIONAL;
+            driver->state = STATE_WAIT_START;
 
             break;
 
@@ -389,39 +263,8 @@ void update_state_machine(driver_t* driver)
 
 
 
-// Function to align motors
-void align_motors(uint16_t node_id)
-{
-    send_sdo_mode_of_operation(MODE_ALIGNMENT, node_id);
-}
-
-static time_t last_time = 0;
 
 
-bool check_alignment_status(driver_t* driver)
-{
-    time_t current_time = millis();
-    if (current_time - last_time >= 3000)
-    {
-        last_time = current_time;
-        //Read mode of operation
-        //Od_index: 0x6061 and Od_sub_index: 0x00
-        send_sdo_read_command(0x6060, 0x00, driver->node_id);
-    }
-
-
-	//Wait for controller response
-    //Command: 0x43 for 4 bytes of read
-    //Od_index: 0x6060 and Od_sub_index: 0x00
-    int32_t state = recive_sdo_read_command(0x43, 0x6060, 0x00, driver->node_id);
-
-
-    //After alignment, the mode of operation changes to TORQUE
-	if(state == MODE_TORQUE)
-		return true;
-	else
-		return false;
-}
 
 
 
@@ -434,7 +277,6 @@ bool check_alignment_status(driver_t* driver)
  */
 void run_motors (driver_t* driver)
 {
-	recive_pdo_message(driver);		//Receive PDO message
 	send_pdo_message(driver);		//Send PDO message
 }
 
@@ -450,31 +292,46 @@ void run_motors (driver_t* driver)
  *
  * @return void
  */
-void recive_pdo_message(driver_t* driver)
+void recive_pdo_message(void)
 {
 	can_msg_t rx_msg;
 	if (can_isNewRxMsg()) {
 		can_readRxMsg(&rx_msg);
 
-		if (rx_msg.id == (TPDO1_ID + driver->node_id ))
+		if (rx_msg.id == (TPDO1_ID + NODE_ID_1))
 		{
 			for (int i = 0; i < 8; i++)
-				driver->tpdo1_data.b[i] = rx_msg.data[i];
+				driver_1.tpdo1_data.b[i] = rx_msg.data[i];
 		}
-		if ( rx_msg.id == (TPDO2_ID + driver->node_id ))
-		{
+		if (rx_msg.id == (TPDO2_ID + NODE_ID_1)) {
 			for (int i = 0; i < 8; i++)
-				driver->tpdo2_data.b[i] = rx_msg.data[i];
+				driver_1.tpdo2_data.b[i] = rx_msg.data[i];
 		}
-		if ( rx_msg.id == (TPDO3_ID + driver->node_id ))
-		{
+		if (rx_msg.id == (TPDO3_ID + NODE_ID_1)) {
 			for (int i = 0; i < 8; i++)
-				driver->tpdo3_data.b[i] = rx_msg.data[i];
+				driver_1.tpdo3_data.b[i] = rx_msg.data[i];
 		}
-		if (rx_msg.id == (TPDO4_ID + driver->node_id)) {
+		if (rx_msg.id == (TPDO4_ID + NODE_ID_1)) {
 			for (int i = 0; i < 8; i++)
-				driver->tpdo4_data.b[i] = rx_msg.data[i];
+				driver_1.tpdo4_data.b[i] = rx_msg.data[i];
 		}
+		if (rx_msg.id == (TPDO1_ID + NODE_ID_2)) {
+			for (int i = 0; i < 8; i++)
+				driver_2.tpdo1_data.b[i] = rx_msg.data[i];
+		}
+		if (rx_msg.id == (TPDO2_ID + NODE_ID_2)) {
+			for (int i = 0; i < 8; i++)
+				driver_2.tpdo2_data.b[i] = rx_msg.data[i];
+		}
+		if (rx_msg.id == (TPDO3_ID + NODE_ID_2)) {
+			for (int i = 0; i < 8; i++)
+				driver_2.tpdo3_data.b[i] = rx_msg.data[i];
+		}
+		if (rx_msg.id == (TPDO4_ID + NODE_ID_2)) {
+			for (int i = 0; i < 8; i++)
+				driver_2.tpdo4_data.b[i] = rx_msg.data[i];
+		}
+
 	}
 }
 
@@ -512,7 +369,7 @@ void send_pdo_message(driver_t *driver)
 
 		if (driver->node_id == NODE_ID_1)
 		{
-			current_torque = (int32_t) (driver->tps_value);
+			current_torque = (int32_t) (-1)*(driver->tps_value);
 		} else if (driver->node_id == NODE_ID_2)
 		{
 			current_torque = -(int32_t) (driver->tps_value);
@@ -583,28 +440,6 @@ bool send_controlword(uint8_t controlword, uint16_t node_id)
     int i = 1000000;
     while(i--);
     PRINTF("Enviado Controlword 0x%02X al ID %03X\n", controlword, control_msg.id);
-
-
-
-//	if(send_sdo_write_command(0x2B, 0x6040, 0x00, (int32_t)controlword, node_id))
-//	{
-//		PRINTF("Controlword sent\n");
-//		return true;
-//
-//	}
-//	else
-//	{
-//		PRINTF("Controlword failed\n");
-//	}
-//
-//    if(can_isTxReady())
-//    {
-//    	can_sendTxMsg(&control_msg);
-//
-//    }
-//
-
-
 
 }
 
@@ -713,6 +548,73 @@ void handle_errors(driver_t *driver)
 	}
 
 }
+
+void set_calibration_1(void)
+{
+    // Read the TPS values
+    uint16_t tps1_min = adcReadChannelBlocking(ADC_CHANNEL_TPS1);
+    uint16_t tps2_min = adcReadChannelBlocking(ADC_CHANNEL_TPS2);
+
+    uint16_t front_brake = adcReadChannelBlocking(ADC_CHANNEL_FRONT_BRAKE);
+    uint16_t rear_brake = adcReadChannelBlocking(ADC_CHANNEL_REAR_BRAKE);
+
+    uint16_t direction = adcReadChannelBlocking(ADC_CHANNEL_DIRECTION);
+
+
+	tps_data.tps1_min_value = tps1_min;
+	tps_data.tps2_min_value = tps2_min;
+	PRINTF("TPS 0% value saved TPS1: %d TPS2: %d\n", tps1_min, tps2_min);
+
+	//Save the calibration values in flash memory
+	front_break_data.calibration_break_value = front_brake;
+	rear_break_data.calibration_break_value = rear_brake;
+	PRINTF("Brake calibration value saved Front: %d Rear: %d\n", front_brake, rear_brake);
+
+	direction_data.calibration_direction_value = direction;
+	PRINTF("Direction calibration value saved: %d\n", direction);
+
+	driver_1.state = STATE_CALIBRATION_2;
+	driver_2.state = STATE_IDLE;
+}
+
+void set_calibration_2(void)
+{
+	// Read the TPS values
+	uint16_t tps1_max = adcReadChannelBlocking(ADC_CHANNEL_TPS1);
+	uint16_t tps2_max = adcReadChannelBlocking(ADC_CHANNEL_TPS2);
+	tps_data.tps1_max_value = tps1_max;
+	tps_data.tps2_max_value = tps2_max;
+
+	PRINTF("TPS 100% value saved TPS1: %d TPS2: %d\n", tps1_max, tps2_max);
+
+
+
+	//Save the calibration values in flash memory
+	uint32_t data[BUFFER_LEN];
+	data[0] = (uint32_t)tps_data.tps1_min_value;
+	data[1] = (uint32_t)tps_data.tps1_max_value;
+	data[2] = (uint32_t)tps_data.tps2_min_value;
+	data[3] = (uint32_t)tps_data.tps2_max_value;
+
+	data[4] = (uint32_t)front_break_data.calibration_break_value;
+	data[5] = (uint32_t)rear_break_data.calibration_break_value;
+
+	data[6] = (uint32_t)direction_data.calibration_direction_value;
+
+	program_flash(data, sizeof(data));
+
+	driver_1.calibration_needed = false;
+	driver_2.calibration_needed = false;
+
+	PRINTF("Calibration complete\n");
+
+
+	driver_1.state = STATE_WAIT_START;
+	driver_2.state = STATE_WAIT_START;
+}
+
+
+
 
 
 

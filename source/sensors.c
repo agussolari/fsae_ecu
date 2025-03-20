@@ -17,6 +17,8 @@ direction_data_t direction_data;
 tps_data_t tps_data = {0};
 
 bool check_breaks(void);
+void init_filters(void);
+
 
 
 void init_sensor(void) {
@@ -25,6 +27,8 @@ void init_sensor(void) {
 
 	//Inicializar el ADC para conectar el acelerador
 	adcInit();
+	init_filters();
+
 
 
 	PRINTF("Sensors started\n");
@@ -51,7 +55,43 @@ void init_buttons(void) {
 // Funcion para leer los sensores y guardar los valores de
 // acelerador y freno en variables globales
 
+#define FILTER_WINDOW_SIZE 5
 
+typedef struct {
+    uint16_t values[FILTER_WINDOW_SIZE];
+    uint8_t index;
+    uint32_t sum;
+} filter_t;
+
+void init_filter(filter_t *filter) {
+    for (int i = 0; i < FILTER_WINDOW_SIZE; i++) {
+        filter->values[i] = 0;
+    }
+    filter->index = 0;
+    filter->sum = 0;
+}
+
+uint16_t apply_filter(filter_t *filter, uint16_t new_value) {
+    // Subtract the oldest value from the sum
+    filter->sum -= filter->values[filter->index];
+    // Add the new value to the sum
+    filter->sum += new_value;
+    // Store the new value in the array
+    filter->values[filter->index] = new_value;
+    // Update the index
+    filter->index = (filter->index + 1) % FILTER_WINDOW_SIZE;
+    // Return the average value
+    return (uint16_t)(filter->sum / FILTER_WINDOW_SIZE);
+}
+
+filter_t tps1_filter;
+filter_t tps2_filter;
+
+void init_filters(void)
+{
+    init_filter(&tps1_filter);
+    init_filter(&tps2_filter);
+}
 
 void run_sensors(void) {
 	// Read the TPS values
@@ -65,38 +105,51 @@ void run_sensors(void) {
 
 	tps_data.tps_time_stamp = millis();
 
-	// Map the TPS1 value
-	if (raw_tps1 <= tps_data.tps1_min_value) {
+
+    // Apply the filters
+    uint16_t filtered_tps1 = apply_filter(&tps1_filter, raw_tps1);
+    uint16_t filtered_tps2 = apply_filter(&tps2_filter, raw_tps2);
+
+
+
+
+
+    //Map the TPS1 value
+    if (raw_tps1 > tps_data.tps1_min_value)
+    {
 		tps_data.tps1_value = 0;
-	} else if (raw_tps1 >= tps_data.tps1_max_value) {
+	} else if (raw_tps1 < tps_data.tps1_max_value) {
 		tps_data.tps1_value = 1000;
 	} else {
-		tps_data.tps1_value = (uint16_t) (((float) (raw_tps1 - tps_data.tps1_min_value)
-				/ (tps_data.tps1_max_value - tps_data.tps1_min_value)) * 1000);
+	    tps_data.tps1_value = (uint16_t) (((float) (tps_data.tps1_min_value - filtered_tps1)
+	            / (tps_data.tps1_min_value - tps_data.tps1_max_value)) * 1000);
+    }
+
+    // Map the TPS2 value
+	if (raw_tps2 < tps_data.tps2_min_value) {
+		tps_data.tps2_value = 0;
+	} else if (raw_tps2 > tps_data.tps2_max_value) {
+		tps_data.tps2_value = 1000;
+	} else {
+	    tps_data.tps2_value = (uint16_t) (((float) (filtered_tps2 - tps_data.tps2_min_value)
+	            / (tps_data.tps2_max_value - tps_data.tps2_min_value)) * 1000);
 	}
 
-	// Map the TPS2 value (inverted)
-	if (raw_tps2 <= tps_data.tps2_min_value) {
-		tps_data.tps2_value = 1000;
-	} else if (raw_tps2 >= tps_data.tps2_max_value) {
-		tps_data.tps2_value = 0;
-	} else {
-		tps_data.tps2_value = (uint16_t) (((float) (tps_data.tps2_max_value - raw_tps2)
-				/ (tps_data.tps2_max_value - tps_data.tps2_min_value)) * 1000);
-	}
+//	tps_data.tps1_value = (uint16_t) (((float) (tps_data.tps1_min_value - filtered_tps1)
+//		            / (tps_data.tps1_min_value - tps_data.tps1_max_value)) * 1000);
+//	tps_data.tps2_value = (uint16_t) (((float) (filtered_tps2 - tps_data.tps2_min_value)
+//		            / (tps_data.tps2_max_value - tps_data.tps2_min_value)) * 1000);
+
+//	PRINTF("TPS1: %d TPS2: %d \n", filtered_tps1, filtered_tps2);
+
+
+
 
 	front_break_data.brake_value = raw_front_brake - front_break_data.calibration_break_value;
 	rear_break_data.brake_value = raw_rear_brake - rear_break_data.calibration_break_value;
 
 	direction_data.direction_value = raw_direction - direction_data.calibration_direction_value;
 
-	//Check if the breaks are pressed
-	if(check_breaks())
-	{
-		//If the breaks are pressed, TPS values are set to 0
-		tps_data.tps1_value = 0;
-		tps_data.tps2_value = 0;
-	}
 
 
 
@@ -127,7 +180,7 @@ bool check_implausibility_tps(void)
         else if ((current_time - tps_data.implausibility_start_time) > IMPLAUSIBILITY_THRESHOLD)
         {
             // Implausibility has persisted for more than 100 milliseconds
-            return true;
+//            return true;
         }
     }
     else
@@ -153,6 +206,41 @@ bool check_breaks(void)
 	return false;
 }
 
+
+void flash_read_calibration_values(void)
+{
+	//Read flash memory and save the calibration values
+	uint32_t data[7];
+	read_flash(data, 7);
+
+	tps_data.tps1_min_value = (uint16_t)data[0];
+	tps_data.tps1_max_value = (uint16_t)data[1];
+	tps_data.tps2_min_value = (uint16_t)data[2];
+	tps_data.tps2_max_value = (uint16_t)data[3];
+
+	front_break_data.calibration_break_value = (uint16_t)data[4];
+	rear_break_data.calibration_break_value = (uint16_t)data[5];
+
+	direction_data.calibration_direction_value = (uint16_t)data[6];
+
+	//Initialize the calibration flag
+	if (tps_data.tps1_min_value == 0
+			|| tps_data.tps1_max_value == 0
+			|| tps_data.tps2_min_value == 0
+			|| tps_data.tps2_max_value == 0
+			|| front_break_data.calibration_break_value == 0
+			|| rear_break_data.calibration_break_value == 0
+			|| direction_data.calibration_direction_value == 0)
+	{
+		driver_1.calibration_needed = true;
+		driver_2.calibration_needed = true;
+
+	} else {
+		driver_1.calibration_needed = false;
+		driver_2.calibration_needed = false;
+	}
+
+}
 
 
 

@@ -8,10 +8,7 @@
 #ifndef CAN_OPEN_H_
 #define CAN_OPEN_H_
 
-#include "common.h"
 #include "can.h"
-#include "fsl_debug_console.h"
-
 ////////////////////////////////////////////////////
 //                 SDO WRITE                      //
 ////////////////////////////////////////////////////
