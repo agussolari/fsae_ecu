@@ -50,10 +50,25 @@ void update_leds_by_state(nmt_state_t nmt_state, driver_state_t driver_state)
 	// Update the LEDs based on the NMT state
 	if (nmt_state == NMT_STATE_BOOTUP)
 	{
+		if (driver_state == STATE_CALIBRATION_1)
+		{
+			gpioBlink_led_START(500);
+			gpioWrite(PIN_LED_DRIVE, LED_ACTIVE);
+			gpioWrite(PIN_LED_STOP, !LED_ACTIVE);
+		}
+		else if (driver_state == STATE_CALIBRATION_2)
+		{
+			gpioWrite(PIN_LED_START, !LED_ACTIVE);
+			gpioBlink_led_DRIVE(500);
+			gpioWrite(PIN_LED_STOP, !LED_ACTIVE);
+		}
+		else
+		{
+			gpioBlink_led_START(500);
+			gpioBlink_led_DRIVE(500);
+			gpioBlink_led_STOP(500);
+		}
 
-		gpioBlink_led_START(500);
-		gpioBlink_led_DRIVE(500);
-		gpioBlink_led_STOP(500);
 
 	}
 	else if (nmt_state == NMT_STATE_PRE_OPERATIONAL)

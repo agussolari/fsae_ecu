@@ -50,6 +50,34 @@ void init_drivers(driver_t* driver)
 		driver->pdo1_data.b[i] = 0;
 		driver->pdo2_data.b[i] = 0;
 	}
+
+	//Read flash memory and save the calibration values
+	uint32_t data[7];
+	read_flash(data, 7);
+
+	tps_data.tps1_min_value = (uint16_t)data[0];
+	tps_data.tps1_max_value = (uint16_t)data[1];
+	tps_data.tps2_min_value = (uint16_t)data[2];
+	tps_data.tps2_max_value = (uint16_t)data[3];
+
+	front_break_data.calibration_break_value = (uint16_t)data[4];
+	rear_break_data.calibration_break_value = (uint16_t)data[5];
+
+	direction_data.calibration_direction_value = (uint16_t)data[6];
+
+	//Initialize the calibration flag
+	if (tps_data.tps1_min_value == 0
+			|| tps_data.tps1_max_value == 0
+			|| tps_data.tps2_min_value == 0
+			|| tps_data.tps2_max_value == 0
+			|| front_break_data.calibration_break_value == 0
+			|| rear_break_data.calibration_break_value == 0
+			|| direction_data.calibration_direction_value == 0)
+	{
+		driver->calibration_needed = true;
+	} else {
+		driver->calibration_needed = false;
+	}
 }
 
 
