@@ -53,42 +53,38 @@ void init_drivers(driver_t* driver)
 }
 
 
-void boot_drivers(void)
-{
-	// Send the NMT command to reset the nodes
-    send_nmt_command(NMT_CMD_RESET_NODE, NODE_ID_1);
-    send_nmt_command(NMT_CMD_RESET_NODE, NODE_ID_2);
 
-    // Wait for the boot-up message
-    can_msg_t rx_msg;
-	while (1)
-	{
-		if (can_isNewRxMsg())
-		{
+void boot_drivers(void) {
+	// Send the NMT command to reset the nodes
+	send_nmt_command(NMT_CMD_RESET_NODE, NODE_ID_1);
+	send_nmt_command(NMT_CMD_RESET_NODE, NODE_ID_2);
+
+	// Wait for the boot-up message
+	can_msg_t rx_msg;
+	while (1) {
+		if (can_isNewRxMsg()) {
 			can_readRxMsg(&rx_msg);
-			if (rx_msg.id == (0x700 + NODE_ID_1) && rx_msg.data[1] == 0x00)
-			{
+			if (rx_msg.id == (0x700 + NODE_ID_1) && rx_msg.data[1] == 0x00) {
 				PRINTF("Boot-up message received from Node 1\n");
 				// Initialize the node
-	            if (send_sdo_write_command(0x40, 0x1810, 0x01, 0x00000000, NODE_ID_1))
-	            {
-	                PRINTF("Init SDO command sent from Node 1\n");
-	                driver_1.state = STATE_WAIT_START;
-	            }
+				if (send_sdo_write_command(0x40, 0x1810, 0x01, 0x00000000,
+						NODE_ID_1)) {
+					PRINTF("Init SDO command sent from Node 1\n");
+					driver_1.state = STATE_WAIT_START;
+				}
 			}
-			if (rx_msg.id == (0x700 + NODE_ID_2) && rx_msg.data[1] == 0x00)
-		    {
+			if (rx_msg.id == (0x700 + NODE_ID_2) && rx_msg.data[1] == 0x00) {
 				PRINTF("Boot-up message received from Node 2\n");
 				// Initialize the node
-	            if (send_sdo_write_command(0x40, 0x1810, 0x01, 0x00000000, NODE_ID_1))
-	            {
-	                PRINTF("Init SDO command sent from Node 2\n");
-	                driver_2.state = STATE_WAIT_START;
-	            }
+				if (send_sdo_write_command(0x40, 0x1810, 0x01, 0x00000000,
+						NODE_ID_2)) {
+					PRINTF("Init SDO command sent from Node 2\n");
+					driver_2.state = STATE_WAIT_START;
+				}
 			}
 		}
-		if (driver_1.state == STATE_WAIT_START && driver_2.state == STATE_WAIT_START)
-		{
+		if (driver_1.state == STATE_WAIT_START
+				&& driver_2.state == STATE_WAIT_START) {
 			// Both nodes are ready
 			driver_1.nmt_state = NMT_CMD_ENTER_PRE_OPERATIONAL;
 			driver_2.nmt_state = NMT_CMD_ENTER_PRE_OPERATIONAL;
@@ -97,22 +93,57 @@ void boot_drivers(void)
 
 			break;
 		}
-		if (gpioRead(STOP_GPIO_PORT))
-		{
+		if (gpioRead(STOP_GPIO_PORT)) {
 			button_pressed_stop = true;
-		}
-		else if (button_pressed_stop && gpioRead(STOP_GPIO_PORT) == FALSE)
-		{
+		} else if (button_pressed_stop && gpioRead(STOP_GPIO_PORT) == FALSE) {
 			button_pressed_stop = false;
-			//Send again the reset command
+			// Send again the reset command
 			PRINTF("Resetting nodes\n");
 
 			send_nmt_command(NMT_CMD_RESET_NODE, NODE_ID_1);
 			send_nmt_command(NMT_CMD_RESET_NODE, NODE_ID_2);
 		}
-	}
 
+		// CALIBRATION MODE IF START AND DRIVE BUTTONS ARE PRESSED
+		if (gpioRead(START_GPIO_PORT) && gpioRead(DRIVE_GPIO_PORT)) {
+			button_pressed_calibration = true;
+		} else if (button_pressed_calibration && !gpioRead(START_GPIO_PORT)
+				&& !gpioRead(DRIVE_GPIO_PORT)) {
+			button_pressed_calibration = false;
+			driver_1.state = STATE_CALIBRATION_1;
+			driver_2.state = STATE_IDLE;
+
+			// Wait for calibration step 1 to complete
+			while (driver_1.state == STATE_CALIBRATION_1) {
+				if (gpioRead(START_GPIO_PORT) && gpioRead(DRIVE_GPIO_PORT)) {
+					button_pressed_calibration = true;
+				} else if (button_pressed_calibration
+						&& !gpioRead(START_GPIO_PORT)
+						&& !gpioRead(DRIVE_GPIO_PORT)) {
+					button_pressed_calibration = false;
+					set_calibration_1();
+					driver_1.state = STATE_CALIBRATION_2;
+					driver_2.state = STATE_IDLE;
+				}
+			}
+
+			// Wait for calibration step 2 to complete
+			while (driver_1.state == STATE_CALIBRATION_2) {
+				if (gpioRead(START_GPIO_PORT) && gpioRead(DRIVE_GPIO_PORT)) {
+					button_pressed_calibration = true;
+				} else if (button_pressed_calibration
+						&& !gpioRead(START_GPIO_PORT)
+						&& !gpioRead(DRIVE_GPIO_PORT)) {
+					button_pressed_calibration = false;
+					set_calibration_2();
+				    driver_1.nmt_state = NMT_STATE_BOOTUP;
+				    driver_2.nmt_state = NMT_STATE_BOOTUP;
+				}
+			}
+		}
+	}
 }
+
 
 /**
  * @brief Update the state machine
@@ -331,7 +362,18 @@ void recive_pdo_message(void)
 			for (int i = 0; i < 8; i++)
 				driver_2.tpdo4_data.b[i] = rx_msg.data[i];
 		}
-
+		if (rx_msg.id == AC_CURRENT_NODE_1_ID){
+			memcpy(&current_sense_data.ac_current_n1, rx_msg.data, sizeof(double));
+		}
+		if (rx_msg.id == AC_CURRENT_NODE_2_ID) {
+			memcpy(&current_sense_data.ac_current_n2, rx_msg.data, sizeof(double));
+		}
+		if (rx_msg.id == DC_CURRENT_NODE_1_ID) {
+			memcpy(&current_sense_data.dc_current_n1, rx_msg.data, sizeof(double));
+		}
+		if (rx_msg.id == DC_CURRENT_NODE_2_ID) {
+			memcpy(&current_sense_data.dc_current_n2, rx_msg.data, sizeof(double));
+		}
 	}
 }
 
@@ -518,6 +560,19 @@ void send_motor_data_uart(driver_t *driver) {
 
 	// Send the data over UART
 	uartWriteMsg(buffer, len);
+
+    uint32_t start = 0xFFFFFFFF;
+
+    uartWriteMsg((uint8_t*)&start, sizeof(start));
+    uartWriteMsg((uint8_t*)&current_sense_data.ac_current_n1, sizeof(current_sense_data.ac_current_n1));
+    uartWriteMsg((uint8_t*)&current_sense_data.ac_current_n2, sizeof(current_sense_data.ac_current_n2));
+    uartWriteMsg((uint8_t*)&current_sense_data.dc_current_n1, sizeof(current_sense_data.dc_current_n1));
+    uartWriteMsg((uint8_t*)&current_sense_data.dc_current_n2, sizeof(current_sense_data.dc_current_n2));
+    //Cast TPS values to double and send them to uart
+    double tps1 = (double)tps_data.tps1_value;
+    double tps2 = (double)tps_data.tps2_value;
+    uartWriteMsg((uint8_t*)&tps1, sizeof(tps1));
+    uartWriteMsg((uint8_t*)&tps2, sizeof(tps2));
 }
 
 void handle_errors(driver_t *driver)
@@ -529,6 +584,7 @@ void handle_errors(driver_t *driver)
 		driver->error_time_stamp = driver->time_stamp;
 		driver->state = STATE_ERROR;
 		driver->nmt_state = NMT_STATE_ERROR;
+		send_nmt_command(NMT_CMD_ENTER_PRE_OPERATIONAL, driver->node_id);
 	}
 	else if (driver->tpdo2_data.data.controller_temperature > 70)
 	{
@@ -608,9 +664,17 @@ void set_calibration_2(void)
 
 	PRINTF("Calibration complete\n");
 
+	if(driver_1.nmt_state == NMT_STATE_BOOTUP)
+	{
+		driver_1.state = STATE_POWER_ON_RESET;
+		driver_2.state = STATE_POWER_ON_RESET;
+	}
+	else
+	{
+		driver_1.state = STATE_WAIT_START;
+		driver_2.state = STATE_WAIT_START;
+	}
 
-	driver_1.state = STATE_WAIT_START;
-	driver_2.state = STATE_WAIT_START;
 }
 
 

@@ -42,6 +42,10 @@
 #define IMPLAUSIBILITY_THRESHOLD 100 // 100 milliseconds
 #define PEDAL_TRAVEL_THRESHOLD 100 // 10% of 1000
 
+#define AC_CURRENT_NODE_1_ID 0x001
+#define AC_CURRENT_NODE_2_ID 0x002
+#define DC_CURRENT_NODE_1_ID 0x003
+#define DC_CURRENT_NODE_2_ID 0x004
 
 
 void init_sensor(void);
@@ -51,6 +55,15 @@ void init_buttons(void);
 void run_sensors(void);
 bool check_implausibility_tps(void);
 
+
+typedef struct
+{
+	double ac_current_n1;
+	double ac_current_n2;
+	double dc_current_n1;
+	double dc_current_n2;
+
+}current_sense_data_t;
 
 typedef struct {
 	uint16_t tps1_value;
@@ -95,5 +108,7 @@ extern break_data_t rear_break_data;
 extern direction_data_t direction_data;
 
 extern sensor_values_t sensor_values;
+
+extern current_sense_data_t current_sense_data;
 
 #endif /* SENSORS_H_ */

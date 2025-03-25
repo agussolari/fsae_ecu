@@ -66,9 +66,9 @@ int main(void)
 
 
 	//Initialice periodic interrupts
-	SysTick_RegisterCallback(update_data, 100);
+	SysTick_RegisterCallback(update_data, 10);
 	SysTick_RegisterCallback(update_driver_leds, 100);
-	SysTick_RegisterCallback(recive_pdo_message, 100);
+	SysTick_RegisterCallback(recive_pdo_message, 10);
 	SysTick_RegisterCallback(run_sensors, 10);
 
 
@@ -92,32 +92,12 @@ int main(void)
     while (1)
     {
 
-//    	can_msg_t msg;
-//    	if(can_isNewRxMsg())
-//    	{
-//    		can_readRxMsg(&msg);
-//    		PRINTF("%d %d ", msg.id, msg.len);
-//			for (int i = 0; i < msg.len; i++) {
-//				PRINTF("%d ", msg.data[i]);
-//			}
-//			PRINTF("\n");
-//    	}
-//
-//    	if (gpioRead(STOP_GPIO_PORT))
-//    	{
-//			PRINTF("STOP\n");
-//			send_nmt_command(NMT_CMD_RESET_NODE, NODE_ID_1);
-//			send_nmt_command(NMT_CMD_RESET_NODE, NODE_ID_2);
-//		}
        update_state_machine(&driver_1);
        update_state_machine(&driver_2);
 
 
        driver_1.time_stamp = millis();
        driver_2.time_stamp = millis();
-
-    	//PRINTF ADC VALUES
-
 
 
     }
@@ -130,14 +110,16 @@ void update_data(void)
 {
 	send_motor_data_uart(&driver_1);
 	send_motor_data_uart(&driver_2);
+
 }
 
 void update_driver_leds(void)
 {
 	update_leds_by_state(driver_1.nmt_state, driver_1.state);
 	update_leds_by_rpm(tps_data.tps1_value);
-
 }
+
+
 
 
 

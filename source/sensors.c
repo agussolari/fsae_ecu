@@ -16,6 +16,8 @@ direction_data_t direction_data;
 
 tps_data_t tps_data = {0};
 
+current_sense_data_t current_sense_data = {0};
+
 bool check_breaks(void);
 void init_filters(void);
 
@@ -105,6 +107,8 @@ void run_sensors(void) {
 
 	tps_data.tps_time_stamp = millis();
 
+//	PRINTF("TPS1: %d TPS2: %d \n", raw_tps1, raw_tps2);
+
 
     // Apply the filters
     uint16_t filtered_tps1 = apply_filter(&tps1_filter, raw_tps1);
@@ -134,6 +138,8 @@ void run_sensors(void) {
 	    tps_data.tps2_value = (uint16_t) (((float) (filtered_tps2 - tps_data.tps2_min_value)
 	            / (tps_data.tps2_max_value - tps_data.tps2_min_value)) * 1000);
 	}
+
+//	PRINTF("TPS1: %d TPS2: %d \n", tps_data.tps1_value, tps_data.tps2_value);
 
 //	tps_data.tps1_value = (uint16_t) (((float) (tps_data.tps1_min_value - filtered_tps1)
 //		            / (tps_data.tps1_min_value - tps_data.tps1_max_value)) * 1000);
@@ -180,7 +186,7 @@ bool check_implausibility_tps(void)
         else if ((current_time - tps_data.implausibility_start_time) > IMPLAUSIBILITY_THRESHOLD)
         {
             // Implausibility has persisted for more than 100 milliseconds
-//            return true;
+            return true;
         }
     }
     else
