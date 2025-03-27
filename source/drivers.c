@@ -80,6 +80,28 @@ void init_drivers(driver_t* driver)
 	}
 }
 
+void recive_bootup_message(can_msg_t rx_msg)
+{
+	if (rx_msg.id == (0x700 + NODE_ID_1) && rx_msg.data[1] == 0x00) {
+		PRINTF("Boot-up message received from Node 1\n");
+		// Initialize the node
+		if (send_sdo_write_command(0x40, 0x1810, 0x01, 0x00000000,
+				NODE_ID_1)) {
+			PRINTF("Init SDO command sent from Node 1\n");
+			driver_1.state = STATE_WAIT_START;
+		}
+	}
+	if (rx_msg.id == (0x700 + NODE_ID_2) && rx_msg.data[1] == 0x00) {
+		PRINTF("Boot-up message received from Node 2\n");
+		// Initialize the node
+		if (send_sdo_write_command(0x40, 0x1810, 0x01, 0x00000000,
+				NODE_ID_2)) {
+			PRINTF("Init SDO command sent from Node 2\n");
+			driver_2.state = STATE_WAIT_START;
+		}
+	}
+}
+
 
 
 void boot_drivers(void) {
@@ -87,30 +109,8 @@ void boot_drivers(void) {
 	send_nmt_command(NMT_CMD_RESET_NODE, NODE_ID_1);
 	send_nmt_command(NMT_CMD_RESET_NODE, NODE_ID_2);
 
-	// Wait for the boot-up message
-	can_msg_t rx_msg;
-	while (1) {
-		if (can_isNewRxMsg()) {
-			can_readRxMsg(&rx_msg);
-			if (rx_msg.id == (0x700 + NODE_ID_1) && rx_msg.data[1] == 0x00) {
-				PRINTF("Boot-up message received from Node 1\n");
-				// Initialize the node
-				if (send_sdo_write_command(0x40, 0x1810, 0x01, 0x00000000,
-						NODE_ID_1)) {
-					PRINTF("Init SDO command sent from Node 1\n");
-					driver_1.state = STATE_WAIT_START;
-				}
-			}
-			if (rx_msg.id == (0x700 + NODE_ID_2) && rx_msg.data[1] == 0x00) {
-				PRINTF("Boot-up message received from Node 2\n");
-				// Initialize the node
-				if (send_sdo_write_command(0x40, 0x1810, 0x01, 0x00000000,
-						NODE_ID_2)) {
-					PRINTF("Init SDO command sent from Node 2\n");
-					driver_2.state = STATE_WAIT_START;
-				}
-			}
-		}
+	while (1)
+	{
 		if (driver_1.state == STATE_WAIT_START
 				&& driver_2.state == STATE_WAIT_START) {
 			// Both nodes are ready
@@ -351,12 +351,8 @@ void run_motors (driver_t* driver)
  *
  * @return void
  */
-void recive_pdo_message(void)
+void recive_pdo_message(can_msg_t rx_msg)
 {
-	can_msg_t rx_msg;
-	if (can_isNewRxMsg()) {
-		can_readRxMsg(&rx_msg);
-
 		if (rx_msg.id == (TPDO1_ID + NODE_ID_1))
 		{
 			for (int i = 0; i < 8; i++)
@@ -390,21 +386,24 @@ void recive_pdo_message(void)
 			for (int i = 0; i < 8; i++)
 				driver_2.tpdo4_data.b[i] = rx_msg.data[i];
 		}
-		if (rx_msg.id == AC_CURRENT_NODE_1_ID){
-			memcpy(&current_sense_data.ac_current_n1, rx_msg.data, sizeof(double));
-		}
-		if (rx_msg.id == AC_CURRENT_NODE_2_ID) {
-			memcpy(&current_sense_data.ac_current_n2, rx_msg.data, sizeof(double));
-		}
-		if (rx_msg.id == DC_CURRENT_NODE_1_ID) {
-			memcpy(&current_sense_data.dc_current_n1, rx_msg.data, sizeof(double));
-		}
-		if (rx_msg.id == DC_CURRENT_NODE_2_ID) {
-			memcpy(&current_sense_data.dc_current_n2, rx_msg.data, sizeof(double));
-		}
-	}
+
 }
 
+void recive_current_message(can_msg_t rx_msg)
+{
+	if (rx_msg.id == AC_CURRENT_NODE_1_ID){
+		memcpy(&current_sense_data.ac_current_n1, rx_msg.data, sizeof(double));
+	}
+	if (rx_msg.id == AC_CURRENT_NODE_2_ID) {
+		memcpy(&current_sense_data.ac_current_n2, rx_msg.data, sizeof(double));
+	}
+	if (rx_msg.id == DC_CURRENT_NODE_1_ID) {
+		memcpy(&current_sense_data.dc_current_n1, rx_msg.data, sizeof(double));
+	}
+	if (rx_msg.id == DC_CURRENT_NODE_2_ID) {
+		memcpy(&current_sense_data.dc_current_n2, rx_msg.data, sizeof(double));
+	}
+}
 
 
 #define TPS_THRESHOLD 10

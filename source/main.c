@@ -37,9 +37,9 @@
 #include "systick.h"
 #include "adc.h"
 
-void update_data(void);
-void update_driver_leds(void);
-
+void send_data_uart(void);
+void send_data_led(void);
+void recive_data(void);
 
 
 
@@ -66,9 +66,9 @@ int main(void)
 
 
 	//Initialice periodic interrupts
-	SysTick_RegisterCallback(update_data, 10);
-	SysTick_RegisterCallback(update_driver_leds, 100);
-	SysTick_RegisterCallback(recive_pdo_message, 10);
+	SysTick_RegisterCallback(send_data_uart, 10);
+	SysTick_RegisterCallback(send_data_led, 100);
+	SysTick_RegisterCallback(recive_data, 10);
 	SysTick_RegisterCallback(run_sensors, 10);
 
 
@@ -106,17 +106,30 @@ int main(void)
 
 
 
-void update_data(void)
+void send_data_uart(void)
 {
 	send_motor_data_uart(&driver_1);
 	send_motor_data_uart(&driver_2);
 
 }
 
-void update_driver_leds(void)
+void send_data_led(void)
 {
 	update_leds_by_state(driver_1.nmt_state, driver_1.state);
 	update_leds_by_rpm(tps_data.tps1_value);
+}
+
+void recive_data(void)
+{
+	if(can_isNewRxMsg())
+	{
+		can_msg_t rx_msg;
+	    can_readRxMsg(&rx_msg);
+
+	    recive_bootup_message(rx_msg);
+	    recive_current_message(rx_msg);
+	    recive_pdo_message(rx_msg);
+	}
 }
 
 

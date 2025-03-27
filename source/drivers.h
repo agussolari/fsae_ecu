@@ -214,7 +214,10 @@ void init_drivers(driver_t* driver);
 void boot_drivers(void);
 
 void update_state_machine(driver_t* driver);
-void recive_pdo_message(void);
+
+void recive_bootup_message(can_msg_t rx_msg);
+void recive_pdo_message(can_msg_t rx_msg);
+void recive_current_message(can_msg_t rx_msg);
 
 void send_motor_data_uart(driver_t* driver);
 
