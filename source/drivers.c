@@ -391,17 +391,19 @@ void recive_pdo_message(can_msg_t rx_msg)
 
 void recive_current_message(can_msg_t rx_msg)
 {
-	if (rx_msg.id == AC_CURRENT_NODE_1_ID){
-		memcpy(&current_sense_data.ac_current_n1, rx_msg.data, sizeof(double));
-	}
-	if (rx_msg.id == AC_CURRENT_NODE_2_ID) {
-		memcpy(&current_sense_data.ac_current_n2, rx_msg.data, sizeof(double));
-	}
-	if (rx_msg.id == DC_CURRENT_NODE_1_ID) {
-		memcpy(&current_sense_data.dc_current_n1, rx_msg.data, sizeof(double));
-	}
-	if (rx_msg.id == DC_CURRENT_NODE_2_ID) {
-		memcpy(&current_sense_data.dc_current_n2, rx_msg.data, sizeof(double));
+	if (rx_msg.id == CURRENT_NODE_ID)
+	{
+		//Convert int16_t to float
+		int16_t ac_current_n1 = (int16_t) (rx_msg.data[0] | rx_msg.data[1] << 8);
+		int16_t ac_current_n2 = (int16_t) (rx_msg.data[2] | rx_msg.data[3] << 8);
+		int16_t dc_current_n1 = (int16_t) (rx_msg.data[4] | rx_msg.data[5] << 8);
+		int16_t dc_current_n2 = (int16_t) (rx_msg.data[6] | rx_msg.data[7] << 8);
+
+		//Save the current values
+		current_sense_data.ac_current_n1 = ((float)ac_current_n1)/100.0;
+		current_sense_data.ac_current_n2 = ((float)ac_current_n2)/100.0;
+		current_sense_data.dc_current_n1 = ((float)dc_current_n1)/100.0;
+		current_sense_data.dc_current_n2 = ((float)dc_current_n2)/100.0;
 	}
 }
 
@@ -585,21 +587,29 @@ void send_motor_data_uart(driver_t *driver) {
 
 			direction_data.direction_value);
 
-	// Send the data over UART
 	uartWriteMsg(buffer, len);
+
+
+
+}
+
+void send_current_data_uart(void)
+{
+	// Send the data over UART
 
     uint32_t start = 0xFFFFFFFF;
 
     uartWriteMsg((uint8_t*)&start, sizeof(start));
-    uartWriteMsg((uint8_t*)&current_sense_data.ac_current_n1, sizeof(current_sense_data.ac_current_n1));
-    uartWriteMsg((uint8_t*)&current_sense_data.ac_current_n2, sizeof(current_sense_data.ac_current_n2));
-    uartWriteMsg((uint8_t*)&current_sense_data.dc_current_n1, sizeof(current_sense_data.dc_current_n1));
-    uartWriteMsg((uint8_t*)&current_sense_data.dc_current_n2, sizeof(current_sense_data.dc_current_n2));
+    uartWriteMsg((uint8_t*)&current_sense_data.ac_current_n1, sizeof(float));
+    uartWriteMsg((uint8_t*)&current_sense_data.ac_current_n2, sizeof(float));
+    uartWriteMsg((uint8_t*)&current_sense_data.dc_current_n1, sizeof(float));
+    uartWriteMsg((uint8_t*)&current_sense_data.dc_current_n2, sizeof(float));
     //Cast TPS values to double and send them to uart
-    double tps1 = (double)tps_data.tps1_value;
-    double tps2 = (double)tps_data.tps2_value;
-    uartWriteMsg((uint8_t*)&tps1, sizeof(tps1));
-    uartWriteMsg((uint8_t*)&tps2, sizeof(tps2));
+    float tps1 = (float)tps_data.tps1_value;
+    float tps2 = (float)tps_data.tps2_value;
+    uartWriteMsg((uint8_t*)&tps1, sizeof(float));
+    uartWriteMsg((uint8_t*)&tps2, sizeof(float));
+
 }
 
 void handle_errors(driver_t *driver)

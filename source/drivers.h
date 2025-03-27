@@ -220,6 +220,8 @@ void recive_pdo_message(can_msg_t rx_msg);
 void recive_current_message(can_msg_t rx_msg);
 
 void send_motor_data_uart(driver_t* driver);
+void send_current_data_uart(void);
+
 
 
 #endif /* DRIVERS_H_ */

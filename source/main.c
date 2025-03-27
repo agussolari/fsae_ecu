@@ -66,7 +66,7 @@ int main(void)
 
 
 	//Initialice periodic interrupts
-	SysTick_RegisterCallback(send_data_uart, 10);
+	SysTick_RegisterCallback(send_data_uart, 15);
 	SysTick_RegisterCallback(send_data_led, 100);
 	SysTick_RegisterCallback(recive_data, 10);
 	SysTick_RegisterCallback(run_sensors, 10);
@@ -110,6 +110,7 @@ void send_data_uart(void)
 {
 	send_motor_data_uart(&driver_1);
 	send_motor_data_uart(&driver_2);
+	send_current_data_uart();
 
 }
 

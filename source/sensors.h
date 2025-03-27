@@ -42,10 +42,9 @@
 #define IMPLAUSIBILITY_THRESHOLD 100 // 100 milliseconds
 #define PEDAL_TRAVEL_THRESHOLD 100 // 10% of 1000
 
-#define AC_CURRENT_NODE_1_ID 0x001
-#define AC_CURRENT_NODE_2_ID 0x002
-#define DC_CURRENT_NODE_1_ID 0x003
-#define DC_CURRENT_NODE_2_ID 0x004
+#define CURRENT_NODE_ID 0x001
+
+
 
 
 void init_sensor(void);
@@ -58,10 +57,10 @@ bool check_implausibility_tps(void);
 
 typedef struct
 {
-	double ac_current_n1;
-	double ac_current_n2;
-	double dc_current_n1;
-	double dc_current_n2;
+	float ac_current_n1;
+	float ac_current_n2;
+	float dc_current_n1;
+	float dc_current_n2;
 
 }current_sense_data_t;
 
