@@ -108,9 +108,9 @@ int main(void)
 
 void send_data_uart(void)
 {
-	send_motor_data_uart(&driver_1);
-	send_motor_data_uart(&driver_2);
-	send_current_data_uart();
+	send_data_gui_uart(&driver_1);
+	send_data_gui_uart(&driver_2);
+	send_data_rf_uart();
 
 }
 

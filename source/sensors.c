@@ -139,15 +139,6 @@ void run_sensors(void) {
 	            / (tps_data.tps2_max_value - tps_data.tps2_min_value)) * 1000);
 	}
 
-//	PRINTF("TPS1: %d TPS2: %d \n", tps_data.tps1_value, tps_data.tps2_value);
-
-//	tps_data.tps1_value = (uint16_t) (((float) (tps_data.tps1_min_value - filtered_tps1)
-//		            / (tps_data.tps1_min_value - tps_data.tps1_max_value)) * 1000);
-//	tps_data.tps2_value = (uint16_t) (((float) (filtered_tps2 - tps_data.tps2_min_value)
-//		            / (tps_data.tps2_max_value - tps_data.tps2_min_value)) * 1000);
-
-//	PRINTF("TPS1: %d TPS2: %d \n", filtered_tps1, filtered_tps2);
-
 
 
 

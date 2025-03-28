@@ -558,34 +558,39 @@ bool send_sdo_mode_of_operation(int8_t mode, uint16_t node_id)
 
 
 
-void send_motor_data_uart(driver_t *driver) {
+void send_data_gui_uart(driver_t *driver)
+{
 	char buffer[64];
 
 	int len = snprintf(buffer, sizeof(buffer),
-			":%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d:",
-			driver->node_id, driver->state, driver->nmt_state, driver->mode,
+			":%d;%d;%d;%d;%d:",
 
-			driver->pdo1_data.data.target_torque,
-			driver->pdo1_data.data.target_velocity,
+			driver->node_id,
+			driver->state,
+			driver->nmt_state,
+			driver->mode,
+			driver->error_code);
 
-			driver->tpdo1_data.data.actual_torque,
-
-			driver->tpdo2_data.data.controller_temperature,
-			driver->tpdo2_data.data.current_demand,
-
-			driver->tpdo4_data.data.torque_regulator,
-			driver->tpdo4_data.data.actual_velocity,
-			driver->tpdo4_data.data.motor_temperature,
-
-			driver->error_code,
-
-			tps_data.tps1_value, tps_data.tps2_value,
-
-			driver->tps_value,
-
-			front_break_data.brake_value, rear_break_data.brake_value,
-
-			direction_data.direction_value);
+//			driver->pdo1_data.data.target_torque,
+//			driver->pdo1_data.data.target_velocity,
+//
+//			driver->tpdo1_data.data.actual_torque,
+//
+//			driver->tpdo2_data.data.controller_temperature,
+//			driver->tpdo2_data.data.current_demand,
+//
+//			driver->tpdo4_data.data.torque_regulator,
+//			driver->tpdo4_data.data.actual_velocity,
+//			driver->tpdo4_data.data.motor_temperature,
+//
+//
+//			tps_data.tps1_value, tps_data.tps2_value,
+//
+//			driver->tps_value,
+//
+//			front_break_data.brake_value, rear_break_data.brake_value,
+//
+//			direction_data.direction_value);
 
 	uartWriteMsg(buffer, len);
 
@@ -593,24 +598,38 @@ void send_motor_data_uart(driver_t *driver) {
 
 }
 
-void send_current_data_uart(void)
+void send_data_rf_uart(void)
 {
-	// Send the data over UART
-
+    // Send the data over UART
     uint32_t start = 0xFFFFFFFF;
-
     uartWriteMsg((uint8_t*)&start, sizeof(start));
+
     uartWriteMsg((uint8_t*)&current_sense_data.ac_current_n1, sizeof(float));
     uartWriteMsg((uint8_t*)&current_sense_data.ac_current_n2, sizeof(float));
     uartWriteMsg((uint8_t*)&current_sense_data.dc_current_n1, sizeof(float));
     uartWriteMsg((uint8_t*)&current_sense_data.dc_current_n2, sizeof(float));
-    //Cast TPS values to double and send them to uart
-    float tps1 = (float)tps_data.tps1_value;
-    float tps2 = (float)tps_data.tps2_value;
-    uartWriteMsg((uint8_t*)&tps1, sizeof(float));
-    uartWriteMsg((uint8_t*)&tps2, sizeof(float));
 
+    float temp;
+
+    temp = (float)tps_data.tps1_value;
+    uartWriteMsg((uint8_t*)&temp, sizeof(float));
+
+    temp = (float)tps_data.tps2_value;
+    uartWriteMsg((uint8_t*)&temp, sizeof(float));
+
+    temp = (float)front_break_data.brake_value;
+    uartWriteMsg((uint8_t*)&temp, sizeof(float));
+
+    temp = (float)rear_break_data.brake_value;
+    uartWriteMsg((uint8_t*)&temp, sizeof(float));
+
+    temp = (float)direction_data.direction_value;
+    uartWriteMsg((uint8_t*)&temp, sizeof(float));
+
+    temp = (float)driver_1.tpdo4_data.data.actual_velocity;
+    uartWriteMsg((uint8_t*)&temp, sizeof(float));
 }
+
 
 void handle_errors(driver_t *driver)
 {

@@ -71,12 +71,6 @@ void BOARD_InitPins(void)
     /* Enables the clock for the GPIO0 module */
     CLOCK_EnableClock(kCLOCK_Gpio0);
 
-    gpio_pin_config_t gpio0_pin12_config = {
-        .pinDirection = kGPIO_DigitalInput,
-        .outputLogic = 0U
-    };
-    /* Initialize GPIO functionality on pin PIO0_23 (pin 12)  */
-    GPIO_PinInit(GPIO, 0U, 23U, &gpio0_pin12_config);
 
 
 	const uint32_t adc_config = IOCON_PIO_DIGIMODE(0) | IOCON_PIO_ASW(1);
@@ -252,20 +246,7 @@ void BOARD_InitPins(void)
 //        /* PORT0 PIN7 (coords: 60) is configured as FC1_SCK */
 //        IOCON_PinMuxSet(IOCON, 0U, 7U, port0_pin7_config);
 //
-        const uint32_t port0_pin13_config = (/* Pin is configured as FC1_CTS_SDA_SSEL0 */
-									IOCON_PIO_FUNC0 |
-									/* Selects pull-up function */
-									IOCON_PIO_MODE_PULLUP |
-									/* Standard mode, output slew rate control is enabled */
-									IOCON_PIO_SLEW_STANDARD |
-									/* Input function is not inverted */
-									IOCON_PIO_INV_DI |
-									/* Enables digital function */
-									IOCON_PIO_DIGITAL_EN |
-									/* Open drain is disabled */
-									IOCON_PIO_OPENDRAIN_DI);
-        /* PORT0 PIN13 (coords: 66) is configured as FC1_CTS_SDA_SSEL0 */
-        IOCON_PinMuxSet(IOCON, 0U, 13U, port0_pin13_config);
+
 
 //        const uint32_t port1_pin11_config = (/* Pin is configured as FC1_TXD_SCL_MISO_WS */
 //									IOCON_PIO_FUNC2 |
