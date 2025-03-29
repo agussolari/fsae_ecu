@@ -142,10 +142,10 @@ void run_sensors(void) {
 
 
 
-	front_break_data.brake_value = raw_front_brake - front_break_data.calibration_break_value;
-	rear_break_data.brake_value = raw_rear_brake - rear_break_data.calibration_break_value;
+	front_break_data.brake_value = (int16_t)(raw_front_brake - front_break_data.calibration_break_value);
+	rear_break_data.brake_value = (int16_t)(raw_rear_brake - rear_break_data.calibration_break_value);
 
-	direction_data.direction_value = raw_direction - direction_data.calibration_direction_value;
+	direction_data.direction_value = (int16_t)(raw_direction - direction_data.calibration_direction_value);
 
 
 

@@ -23,13 +23,21 @@
 
 
 
-#define ADC_CHANNEL_TPS1 ADC_CH0A
-#define ADC_CHANNEL_TPS2 ADC_CH0B
+//#define ADC_CHANNEL_TPS1 ADC_CH0A
+//#define ADC_CHANNEL_TPS2 ADC_CH0B
+//
+//#define ADC_CHANNEL_FRONT_BRAKE ADC_CH3A // Canal del ADC que se conecta al freno
+//#define ADC_CHANNEL_REAR_BRAKE ADC_CH3B // Canal del ADC que se conecta a la direccion
+//
+//#define ADC_CHANNEL_DIRECTION ADC_CH2A // Canal del ADC que se conecta a la direccion
 
-#define ADC_CHANNEL_FRONT_BRAKE ADC_CH3A // Canal del ADC que se conecta al freno
-#define ADC_CHANNEL_REAR_BRAKE ADC_CH3B // Canal del ADC que se conecta a la direccion
+#define ADC_CHANNEL_TPS1 ADC_CH0A //OK
+#define ADC_CHANNEL_TPS2 ADC_CH2A //OK
 
-#define ADC_CHANNEL_DIRECTION ADC_CH2A // Canal del ADC que se conecta a la direccion
+#define ADC_CHANNEL_REAR_BRAKE ADC_CH3A
+#define ADC_CHANNEL_FRONT_BRAKE ADC_CH0B //
+
+#define ADC_CHANNEL_DIRECTION ADC_CH3B // Canal del ADC que se conecta a la direccion
 
 #define SENSOR_READ_INTERVAL 100 // Intervalo de lectura de los sensores en ms
 
@@ -67,14 +75,14 @@ typedef struct
 typedef struct {
 	uint16_t tps1_value;
 	uint16_t tps2_value;
-	uint16_t front_brake_value;
-	uint16_t rear_brake_value;
+	int16_t front_brake_value;
+	int16_t rear_brake_value;
 	int16_t direction_value;
 } sensor_values_t;
 
 typedef struct
 {
-	uint16_t brake_value;
+	int16_t brake_value;
 	uint16_t calibration_break_value;
 }break_data_t;
 
