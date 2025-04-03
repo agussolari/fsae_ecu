@@ -89,6 +89,7 @@ void recive_bootup_message(can_msg_t rx_msg)
 				NODE_ID_1)) {
 			PRINTF("Init SDO command sent from Node 1\n");
 			driver_1.state = STATE_WAIT_START;
+			driver_1.nmt_state = NMT_STATE_BOOTUP;
 		}
 	}
 	if (rx_msg.id == (0x700 + NODE_ID_2) && rx_msg.data[1] == 0x00) {
@@ -98,6 +99,7 @@ void recive_bootup_message(can_msg_t rx_msg)
 				NODE_ID_2)) {
 			PRINTF("Init SDO command sent from Node 2\n");
 			driver_2.state = STATE_WAIT_START;
+			driver_2.nmt_state = NMT_STATE_BOOTUP;
 		}
 	}
 }

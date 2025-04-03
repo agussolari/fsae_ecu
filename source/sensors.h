@@ -75,6 +75,7 @@ typedef struct
 typedef struct {
 	uint16_t tps1_value;
 	uint16_t tps2_value;
+	uint16_t tps_value;
 	int16_t front_brake_value;
 	int16_t rear_brake_value;
 	int16_t direction_value;

@@ -39,6 +39,7 @@
 
 void send_data_uart(void);
 void send_data_led(void);
+void send_data_motec(void);
 void recive_data(void);
 
 
@@ -66,8 +67,9 @@ int main(void)
 
 
 	//Initialice periodic interrupts
-	SysTick_RegisterCallback(send_data_uart, 15);
 	SysTick_RegisterCallback(send_data_led, 100);
+	SysTick_RegisterCallback(send_data_uart, 10);
+	SysTick_RegisterCallback(send_data_motec, 10);
 	SysTick_RegisterCallback(recive_data, 10);
 	SysTick_RegisterCallback(run_sensors, 10);
 
@@ -118,6 +120,38 @@ void send_data_led(void)
 {
 	update_leds_by_state(driver_1.nmt_state, driver_1.state);
 	update_leds_by_rpm(tps_data.tps1_value);
+}
+
+void send_data_motec(void)
+{
+	//b[0], b[1]: TPS Value
+	//b[2], b[3]: Front Brake Value
+	//b[4], b[5]: Rear Brake Value
+	//b[6], b[7]: Direction Value
+
+	uint8_t b[8];
+
+	b[0] = (uint8_t)(tps_data.tps1_value >> 8);
+	b[1] = (uint8_t)(tps_data.tps1_value);
+
+	b[2] = (uint8_t)(front_break_data.brake_value >> 8);
+	b[3] = (uint8_t)(front_break_data.brake_value);
+
+	b[4] = (uint8_t)(rear_break_data.brake_value >> 8);
+	b[5] = (uint8_t)(rear_break_data.brake_value);
+
+	b[6] = (uint8_t)(direction_data.direction_value >> 8);
+	b[7] = (uint8_t)(direction_data.direction_value);
+
+	if (can_isTxReady())
+	{
+		can_msg_t msg;
+		msg.id = 0x501;
+		msg.data = b;
+		msg.len = 8;
+		can_sendMsg(&msg);
+	}
+
 }
 
 void recive_data(void)

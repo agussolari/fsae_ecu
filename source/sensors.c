@@ -142,8 +142,14 @@ void run_sensors(void) {
 
 
 
-	front_break_data.brake_value = (int16_t)(raw_front_brake - front_break_data.calibration_break_value);
-	rear_break_data.brake_value = (int16_t)(raw_rear_brake - rear_break_data.calibration_break_value);
+//	front_break_data.brake_value = (int16_t)(raw_front_brake - front_break_data.calibration_break_value);
+//	rear_break_data.brake_value = (int16_t)(raw_rear_brake - rear_break_data.calibration_break_value);
+
+	//Break values in PSI
+	// P [PSI] = 400*(V - 0.5V)
+	front_break_data.brake_value = (int16_t)(400.0*(((float)raw_front_brake/65535.0) - 0.5));
+	rear_break_data.brake_value = (int16_t)(400.0*(((float)raw_rear_brake/65535.0) - 0.5));
+
 
 	direction_data.direction_value = (int16_t)(raw_direction - direction_data.calibration_direction_value);
 
@@ -153,6 +159,7 @@ void run_sensors(void) {
 	//Save values
 	sensor_values.tps1_value = tps_data.tps1_value;
 	sensor_values.tps2_value = tps_data.tps2_value;
+	sensor_values.tps_value = (tps_data.tps1_value + tps_data.tps2_value) / 2;
 	sensor_values.front_brake_value = raw_front_brake;
 	sensor_values.rear_brake_value = raw_rear_brake;
 	sensor_values.direction_value = raw_direction;
