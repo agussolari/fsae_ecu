@@ -50,7 +50,7 @@
 #define IMPLAUSIBILITY_THRESHOLD 100 // 100 milliseconds
 #define PEDAL_TRAVEL_THRESHOLD 100 // 10% of 1000
 
-#define CURRENT_NODE_ID 0x001
+#define CURRENT_NODE_ID 0x70F
 
 
 

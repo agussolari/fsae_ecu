@@ -187,6 +187,7 @@ typedef struct {
 
     bool align;
     bool calibration_needed;
+    bool bootup_message_received;
 
     //TPS Data
     uint16_t tps_value;
@@ -208,6 +209,7 @@ typedef struct {
 
 extern driver_t driver_1;
 extern driver_t driver_2;
+extern bool enable_read_data;
 
 
 void init_drivers(driver_t* driver);

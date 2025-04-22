@@ -8,10 +8,12 @@
 
 driver_t driver_1;
 driver_t driver_2;
+bool enable_read_data = false;
 
 static bool flag = false;
 static bool button_pressed_calibration = false;
 static bool button_pressed_stop = false;
+
 
 
 
@@ -36,6 +38,7 @@ void init_drivers(driver_t* driver)
 
     driver->align = true;
 	driver->calibration_needed = true;
+	driver->bootup_message_received = false;
 
     driver->state = STATE_POWER_ON_RESET;
     driver->nmt_state = NMT_STATE_BOOTUP;
@@ -51,55 +54,32 @@ void init_drivers(driver_t* driver)
 		driver->pdo2_data.b[i] = 0;
 	}
 
-	//Read flash memory and save the calibration values
-	uint32_t data[7];
-	read_flash(data, 7);
-
-	tps_data.tps1_min_value = (uint16_t)data[0];
-	tps_data.tps1_max_value = (uint16_t)data[1];
-	tps_data.tps2_min_value = (uint16_t)data[2];
-	tps_data.tps2_max_value = (uint16_t)data[3];
-
-	front_break_data.calibration_break_value = (uint16_t)data[4];
-	rear_break_data.calibration_break_value = (uint16_t)data[5];
-
-	direction_data.calibration_direction_value = (uint16_t)data[6];
-
-	//Initialize the calibration flag
-	if (tps_data.tps1_min_value == 0
-			|| tps_data.tps1_max_value == 0
-			|| tps_data.tps2_min_value == 0
-			|| tps_data.tps2_max_value == 0
-			|| front_break_data.calibration_break_value == 0
-			|| rear_break_data.calibration_break_value == 0
-			|| direction_data.calibration_direction_value == 0)
-	{
-		driver->calibration_needed = true;
-	} else {
-		driver->calibration_needed = false;
-	}
 }
 
 void recive_bootup_message(can_msg_t rx_msg)
 {
-	if (rx_msg.id == (0x700 + NODE_ID_1) && rx_msg.data[1] == 0x00) {
+	if ((rx_msg.id == (0x700 + NODE_ID_1) && rx_msg.data[0] == 0x7F) && (driver_1.bootup_message_received == false))
+	{
 		PRINTF("Boot-up message received from Node 1\n");
 		// Initialize the node
-		if (send_sdo_write_command(0x40, 0x1810, 0x01, 0x00000000,
-				NODE_ID_1)) {
+		if (send_sdo_write_command(0x40, 0x1810, 0x01, 0x00000000,NODE_ID_1))
+		{
 			PRINTF("Init SDO command sent from Node 1\n");
 			driver_1.state = STATE_WAIT_START;
 			driver_1.nmt_state = NMT_STATE_BOOTUP;
+			driver_1.bootup_message_received = true;
 		}
 	}
-	if (rx_msg.id == (0x700 + NODE_ID_2) && rx_msg.data[1] == 0x00) {
+	if ((rx_msg.id == (0x700 + NODE_ID_2) && rx_msg.data[0] == 0x7F) && (driver_2.bootup_message_received == false))
+	{
 		PRINTF("Boot-up message received from Node 2\n");
 		// Initialize the node
-		if (send_sdo_write_command(0x40, 0x1810, 0x01, 0x00000000,
-				NODE_ID_2)) {
+		if (send_sdo_write_command(0x40, 0x1810, 0x01, 0x00000000, NODE_ID_2))
+		{
 			PRINTF("Init SDO command sent from Node 2\n");
 			driver_2.state = STATE_WAIT_START;
 			driver_2.nmt_state = NMT_STATE_BOOTUP;
+			driver_2.bootup_message_received = true;
 		}
 	}
 }
@@ -118,6 +98,8 @@ void boot_drivers(void) {
 			// Both nodes are ready
 			driver_1.nmt_state = NMT_CMD_ENTER_PRE_OPERATIONAL;
 			driver_2.nmt_state = NMT_CMD_ENTER_PRE_OPERATIONAL;
+
+			enable_read_data = true;
 
 			PRINTF("Boot-up complete\n");
 
@@ -291,7 +273,7 @@ void update_state_machine(driver_t* driver)
 
         case STATE_DRIVE:
             run_motors(driver);
-            handle_errors(driver);
+//            handle_errors(driver);
 
             if (gpioRead(STOP_GPIO_PORT))
             {

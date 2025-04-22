@@ -57,7 +57,7 @@ void init_buttons(void) {
 // Funcion para leer los sensores y guardar los valores de
 // acelerador y freno en variables globales
 
-#define FILTER_WINDOW_SIZE 5
+#define FILTER_WINDOW_SIZE 10
 
 typedef struct {
     uint16_t values[FILTER_WINDOW_SIZE];
@@ -73,7 +73,8 @@ void init_filter(filter_t *filter) {
     filter->sum = 0;
 }
 
-uint16_t apply_filter(filter_t *filter, uint16_t new_value) {
+uint16_t apply_filter(filter_t *filter, uint16_t new_value)
+{
     // Subtract the oldest value from the sum
     filter->sum -= filter->values[filter->index];
     // Add the new value to the sum
@@ -142,16 +143,14 @@ void run_sensors(void) {
 
 
 
-//	front_break_data.brake_value = (int16_t)(raw_front_brake - front_break_data.calibration_break_value);
-//	rear_break_data.brake_value = (int16_t)(raw_rear_brake - rear_break_data.calibration_break_value);
-
 	//Break values in PSI
 	// P [PSI] = 400*(V - 0.5V)
-	front_break_data.brake_value = (int16_t)(400.0*(((float)raw_front_brake/65535.0) - 0.5));
-	rear_break_data.brake_value = (int16_t)(400.0*(((float)raw_rear_brake/65535.0) - 0.5));
+	// V = raw_value/65535.0 * 3.3
+	front_break_data.brake_value = (int16_t)(400.0*(((float)raw_front_brake/65535.0)*3.3 - 0.5));
+	rear_break_data.brake_value = (int16_t)(400.0*(((float)raw_rear_brake/65535.0)*3.3 - 0.5));
 
 
-	direction_data.direction_value = (int16_t)(raw_direction - direction_data.calibration_direction_value);
+	direction_data.direction_value = (int16_t)((float)(raw_direction - direction_data.calibration_direction_value)/32767.0);
 
 
 
@@ -171,29 +170,31 @@ bool check_implausibility_tps(void)
     uint16_t tps_difference =  abs(tps_data.tps1_value - tps_data.tps2_value);
 
     // Check if the difference exceeds the threshold
-    if (tps_difference > PEDAL_TRAVEL_THRESHOLD)
-    {
-        // Get the current time in milliseconds
-        uint32_t current_time = millis();
+	if (tps_difference > PEDAL_TRAVEL_THRESHOLD)
+	{
+		// If the difference is too large, set the implausibility flag
+		if (!tps_data.implausibility_detected)
+		{
+			tps_data.implausibility_detected = true;
+			tps_data.implausibility_start_time = millis();
+		}
+	}
+	else
+	{
+		tps_data.implausibility_detected = false;
+	}
 
-        // Check if this is the first time implausibility is detected
-        if (tps_data.implausibility_start_time == 0)
-        {
-        	tps_data.implausibility_start_time = current_time;
-        }
-        else if ((current_time - tps_data.implausibility_start_time) > IMPLAUSIBILITY_THRESHOLD)
-        {
-            // Implausibility has persisted for more than 100 milliseconds
-            return true;
-        }
-    }
-    else
-    {
-        // Reset the implausibility start time if the difference is within the threshold
-    	tps_data.implausibility_start_time = 0;
-    }
+	// Check if the implausibility condition has been detected for a certain time
+	if (tps_data.implausibility_detected)
+	{
+		if (millis() - tps_data.implausibility_start_time > IMPLAUSIBILITY_THRESHOLD)
+		{
+			// If the implausibility condition has been detected for too long, return true
+			return true;
+		}
+	}
 
-    return false;
+	return false; // If the implausibility condition is not detected or has not been detected for too long, return false
 }
 
 bool check_breaks(void)
@@ -222,6 +223,10 @@ void flash_read_calibration_values(void)
 	tps_data.tps2_min_value = (uint16_t)data[2];
 	tps_data.tps2_max_value = (uint16_t)data[3];
 
+	tps_data.implausibility_detected = false;
+	tps_data.implausibility_start_time = 0;
+	tps_data.tps_time_stamp = 0;
+
 	front_break_data.calibration_break_value = (uint16_t)data[4];
 	rear_break_data.calibration_break_value = (uint16_t)data[5];
 
@@ -243,7 +248,6 @@ void flash_read_calibration_values(void)
 		driver_1.calibration_needed = false;
 		driver_2.calibration_needed = false;
 	}
-
 }
 
 

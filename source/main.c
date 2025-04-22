@@ -96,7 +96,8 @@ int main(void)
 
        update_state_machine(&driver_1);
        update_state_machine(&driver_2);
-
+    	//PRINTF BOTTOMS
+//    	PRINTF("Start: %d Drive: %d Stop: %d\n", gpioRead(START_GPIO_PORT), gpioRead(DRIVE_GPIO_PORT), gpioRead(STOP_GPIO_PORT));
 
        driver_1.time_stamp = millis();
        driver_2.time_stamp = millis();
@@ -147,9 +148,12 @@ void send_data_motec(void)
 	{
 		can_msg_t msg;
 		msg.id = 0x501;
-		msg.data = b;
+		for (int i = 0; i < 8; i++)
+		{
+			msg.data[i] = b[i];
+		}
 		msg.len = 8;
-		can_sendMsg(&msg);
+		can_sendTxMsg(&msg);
 	}
 
 }
@@ -163,7 +167,7 @@ void recive_data(void)
 
 	    recive_bootup_message(rx_msg);
 	    recive_current_message(rx_msg);
-	    recive_pdo_message(rx_msg);
+		recive_pdo_message(rx_msg);
 	}
 }
 
