@@ -96,8 +96,8 @@ int main(void)
 
        update_state_machine(&driver_1);
        update_state_machine(&driver_2);
-    	//PRINTF BOTTOMS
-//    	PRINTF("Start: %d Drive: %d Stop: %d\n", gpioRead(START_GPIO_PORT), gpioRead(DRIVE_GPIO_PORT), gpioRead(STOP_GPIO_PORT));
+       //PRINTF BUTTOMS
+//	   PRINTF("START: %d DRIVE: %d STOP: %d\n", gpioRead(START_GPIO_PORT), gpioRead(DRIVE_GPIO_PORT), gpioRead(STOP_GPIO_PORT));
 
        driver_1.time_stamp = millis();
        driver_2.time_stamp = millis();

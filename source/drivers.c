@@ -86,7 +86,8 @@ void recive_bootup_message(can_msg_t rx_msg)
 
 
 
-void boot_drivers(void) {
+void boot_drivers(void)
+{
 	// Send the NMT command to reset the nodes
 	send_nmt_command(NMT_CMD_RESET_NODE, NODE_ID_1);
 	send_nmt_command(NMT_CMD_RESET_NODE, NODE_ID_2);
@@ -96,8 +97,8 @@ void boot_drivers(void) {
 		if (driver_1.state == STATE_WAIT_START
 				&& driver_2.state == STATE_WAIT_START) {
 			// Both nodes are ready
-			driver_1.nmt_state = NMT_CMD_ENTER_PRE_OPERATIONAL;
-			driver_2.nmt_state = NMT_CMD_ENTER_PRE_OPERATIONAL;
+			driver_1.nmt_state = NMT_STATE_PRE_OPERATIONAL;
+			driver_2.nmt_state = NMT_STATE_PRE_OPERATIONAL;
 
 			enable_read_data = true;
 
@@ -242,7 +243,6 @@ void update_state_machine(driver_t* driver)
             	driver->mode = MODE_TORQUE;
             	PRINTF("Mode of operation set to MODE_TORQUE\n");
 
-
 				PRINTF("Operational Mode\n");
 				send_nmt_command(NMT_CMD_ENTER_OPERATIONAL, driver->node_id);
 				driver->nmt_state = NMT_STATE_OPERATIONAL;
@@ -297,7 +297,7 @@ void update_state_machine(driver_t* driver)
             if ((driver->time_stamp - driver->error_time_stamp) >= 5000)
             {
             	driver->error_time_stamp = driver->time_stamp;
-            	driver->state = STATE_RESET_NODE;
+            	driver->state = STATE_WAIT_START;
             }
             break;
     }
@@ -662,8 +662,8 @@ void set_calibration_1(void)
 	PRINTF("TPS 0% value saved TPS1: %d TPS2: %d\n", tps1_min, tps2_min);
 
 	//Save the calibration values in flash memory
-	front_break_data.calibration_break_value = front_brake;
-	rear_break_data.calibration_break_value = rear_brake;
+	front_break_data.calibration_break_value = ADC_0_5V_VALUE - front_brake;
+	rear_break_data.calibration_break_value = ADC_0_5V_VALUE - rear_brake;
 	PRINTF("Brake calibration value saved Front: %d Rear: %d\n", front_brake, rear_brake);
 
 	direction_data.calibration_direction_value = direction;

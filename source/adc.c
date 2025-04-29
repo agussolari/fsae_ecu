@@ -124,7 +124,7 @@ void adcInit(void)
     LPADC_GetDefaultConfig(&lpadc_config);
     lpadc_config.enableAnalogPreliminary = true;
     lpadc_config.referenceVoltageSource = ADC_VREF;
-    lpadc_config.conversionAverageMode = kLPADC_ConversionAverage128;
+    lpadc_config.conversionAverageMode = kLPADC_ConversionAverage4;
     LPADC_Init(ADC0, &lpadc_config);
 
 

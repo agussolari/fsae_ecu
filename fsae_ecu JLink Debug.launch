@@ -2,6 +2,7 @@
 <launchConfiguration type="com.nxp.mcuxpresso.core.debug.support.segger.launchConfigurationType">
     <stringAttribute key="com.crt.ctrlcenter.OFSemuDetails" value="JLink727938948"/>
     <booleanAttribute key="com.crt.ctrlcenter.mainBreakIsHardware" value="true"/>
+    <booleanAttribute key="com.crt.ctrlcenter.saveState" value="true"/>
     <stringAttribute key="com.crt.ctrlcenter.serialNumber" value="USB 727938948"/>
     <listAttribute key="com.crt.ctrlcenter.symbolsAndImagesGroupSettings"/>
     <intAttribute key="com.nxp.mcuxpresso.core.debug.support.segger.launches.JLinkLaunchConfigHandler.version" value="2"/>

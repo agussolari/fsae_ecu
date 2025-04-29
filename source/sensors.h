@@ -52,6 +52,8 @@
 
 #define CURRENT_NODE_ID 0x70F
 
+#define ADC_0_5V_VALUE (uint16_t)9930 // 3.3V in ADC units
+
 
 
 

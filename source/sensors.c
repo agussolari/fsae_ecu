@@ -57,7 +57,7 @@ void init_buttons(void) {
 // Funcion para leer los sensores y guardar los valores de
 // acelerador y freno en variables globales
 
-#define FILTER_WINDOW_SIZE 10
+#define FILTER_WINDOW_SIZE 25
 
 typedef struct {
     uint16_t values[FILTER_WINDOW_SIZE];
@@ -146,8 +146,8 @@ void run_sensors(void) {
 	//Break values in PSI
 	// P [PSI] = 400*(V - 0.5V)
 	// V = raw_value/65535.0 * 3.3
-	front_break_data.brake_value = (int16_t)(400.0*(((float)raw_front_brake/65535.0)*3.3 - 0.5));
-	rear_break_data.brake_value = (int16_t)(400.0*(((float)raw_rear_brake/65535.0)*3.3 - 0.5));
+	front_break_data.brake_value =  (int16_t)(400.0*(((float)(raw_front_brake + front_break_data.calibration_break_value)/65535.0)*3.3 - 0.5));
+	rear_break_data.brake_value =   (int16_t)(400.0*(((float)(raw_rear_brake + rear_break_data.calibration_break_value)/65535.0)*3.3 - 0.5));
 
 
 	direction_data.direction_value = (int16_t)((float)(raw_direction - direction_data.calibration_direction_value)/32767.0);
@@ -172,11 +172,19 @@ bool check_implausibility_tps(void)
     // Check if the difference exceeds the threshold
 	if (tps_difference > PEDAL_TRAVEL_THRESHOLD)
 	{
-		// If the difference is too large, set the implausibility flag
-		if (!tps_data.implausibility_detected)
+		if (tps_data.implausibility_detected == false)
 		{
+			// If the implausibility condition has just been detected, save the time
 			tps_data.implausibility_detected = true;
 			tps_data.implausibility_start_time = millis();
+		}
+		if (tps_data.implausibility_detected == true)
+		{
+			// If the implausibility condition has been detected for too long, return true
+			if (millis() - tps_data.implausibility_start_time> IMPLAUSIBILITY_THRESHOLD)
+			{
+				return true;
+			}
 		}
 	}
 	else
@@ -184,18 +192,10 @@ bool check_implausibility_tps(void)
 		tps_data.implausibility_detected = false;
 	}
 
-	// Check if the implausibility condition has been detected for a certain time
-	if (tps_data.implausibility_detected)
-	{
-		if (millis() - tps_data.implausibility_start_time > IMPLAUSIBILITY_THRESHOLD)
-		{
-			// If the implausibility condition has been detected for too long, return true
-			return true;
-		}
-	}
 
 	return false; // If the implausibility condition is not detected or has not been detected for too long, return false
 }
+
 
 bool check_breaks(void)
 {
