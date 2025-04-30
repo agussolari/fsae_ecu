@@ -28,7 +28,7 @@
  *       0x2F: 1 byte sent
  * @return 1 = Send success
  */
-bool send_sdo_write_command (uint8_t command, uint16_t od_index, uint8_t od_sub_index, int32_t data, uint16_t node_id);
+bool send_sdo_write_command (uint8_t command, uint16_t od_index, uint8_t od_sub_index, uint32_t data, uint16_t node_id);
 
 /**
  * @brief Receive a SDO Write message

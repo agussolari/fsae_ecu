@@ -70,6 +70,9 @@ int main(void)
 	SysTick_RegisterCallback(send_data_led, 100);
 	SysTick_RegisterCallback(send_data_uart, 10);
 	SysTick_RegisterCallback(send_data_motec, 10);
+	SysTick_RegisterCallback(send_sync_message, 10);
+
+
 	SysTick_RegisterCallback(recive_data, 10);
 	SysTick_RegisterCallback(run_sensors, 10);
 
@@ -132,8 +135,8 @@ void send_data_motec(void)
 
 	uint8_t b[8];
 
-	b[0] = (uint8_t)(tps_data.tps1_value >> 8);
-	b[1] = (uint8_t)(tps_data.tps1_value);
+	b[0] = (uint8_t)(sensor_values.tps_value >> 8);
+	b[1] = (uint8_t)(sensor_values.tps_value);
 
 	b[2] = (uint8_t)(front_break_data.brake_value >> 8);
 	b[3] = (uint8_t)(front_break_data.brake_value);
@@ -153,6 +156,24 @@ void send_data_motec(void)
 			msg.data[i] = b[i];
 		}
 		msg.len = 8;
+		can_sendTxMsg(&msg);
+	}
+
+	//SEND VELOCITY DATA
+	// 0x502
+	// b[0], b[1]: Driver 1 Velocity
+	// b[2], b[3]: Driver 2 Velocity
+
+	if (can_isTxReady()) {
+		can_msg_t msg;
+		msg.id = 0x502;
+		msg.data[0] = (uint8_t) (driver_1.tpdo2_data.data.actual_velocity >> 8);
+		msg.data[1] = (uint8_t) (driver_1.tpdo2_data.data.actual_velocity);
+
+		msg.data[2] = (uint8_t) (driver_2.tpdo2_data.data.actual_velocity >> 8);
+		msg.data[3] = (uint8_t) (driver_2.tpdo2_data.data.actual_velocity);
+
+		msg.len = 4;
 		can_sendTxMsg(&msg);
 	}
 

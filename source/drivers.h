@@ -15,6 +15,7 @@
 #define NODE_ID_1					1
 #define NODE_ID_2					2
 #define BASE_NODE 				0x100
+#define SYNC_ID 				0x080
 
 
 #define SYNC_MESSAGE_ID 		0x080
@@ -120,7 +121,7 @@ typedef union {
 typedef union {
 	uint8_t b[8];
 	struct {
-		uint32_t actual_velocity;
+		int32_t actual_velocity;
 		uint8_t controller_temperature;
 		uint16_t current_demand;
 		uint8_t resv_1;
@@ -144,7 +145,7 @@ typedef union {
 	uint8_t b[8];
 	struct {
 		uint16_t torque_regulator;
-		uint32_t actual_velocity;
+		int32_t actual_velocity;
 		uint8_t resv_3;
 		uint8_t motor_temperature;
 	} data;
@@ -214,6 +215,9 @@ extern bool enable_read_data;
 
 void init_drivers(driver_t* driver);
 void boot_drivers(void);
+void map_tpdo(driver_t *driver);
+void send_sync_message(void);
+
 
 void update_state_machine(driver_t* driver);
 

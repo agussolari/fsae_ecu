@@ -100,7 +100,9 @@ void boot_drivers(void)
 			driver_1.nmt_state = NMT_STATE_PRE_OPERATIONAL;
 			driver_2.nmt_state = NMT_STATE_PRE_OPERATIONAL;
 
-			enable_read_data = true;
+
+			map_tpdo(&driver_1);
+			map_tpdo(&driver_2);
 
 			PRINTF("Boot-up complete\n");
 
@@ -261,6 +263,9 @@ void update_state_machine(driver_t* driver)
                 send_controlword(0x07, driver->node_id);
                 send_controlword(0x0F, driver->node_id);
 
+    			enable_read_data = true;
+
+
                 driver->state = STATE_DRIVE;
                 driver->nmt_state = NMT_STATE_DRIVE;
             }
@@ -286,6 +291,7 @@ void update_state_machine(driver_t* driver)
         case STATE_STOPPED:
             PRINTF("Stop Mode\n");
 			send_nmt_command(NMT_CMD_ENTER_PRE_OPERATIONAL, driver->node_id);
+			enable_read_data = false;
 
             driver->nmt_state = NMT_STATE_PRE_OPERATIONAL;
             driver->state = STATE_WAIT_START;
@@ -297,6 +303,8 @@ void update_state_machine(driver_t* driver)
             if ((driver->time_stamp - driver->error_time_stamp) >= 5000)
             {
             	driver->error_time_stamp = driver->time_stamp;
+    			enable_read_data = false;
+
             	driver->state = STATE_WAIT_START;
             }
             break;
@@ -610,8 +618,12 @@ void send_data_rf_uart(void)
     temp = (float)direction_data.direction_value;
     uartWriteMsg((uint8_t*)&temp, sizeof(float));
 
-    temp = (float)driver_1.tpdo4_data.data.actual_velocity;
+    temp = (float)driver_1.tpdo2_data.data.actual_velocity;
     uartWriteMsg((uint8_t*)&temp, sizeof(float));
+
+    temp = (float)driver_2.tpdo2_data.data.actual_velocity;
+    uartWriteMsg((uint8_t*)&temp, sizeof(float));
+
 }
 
 
@@ -715,6 +727,43 @@ void set_calibration_2(void)
 		driver_2.state = STATE_WAIT_START;
 	}
 
+}
+
+void map_tpdo(driver_t *driver)
+{
+	//Map de number of entries
+	send_sdo_write_command(0x2F, 0x1A01, 0x00, 1 , driver->node_id);
+
+	//Map the entries
+	// Velocity 0x606C 0x00 4 bytes
+	// 0x606C0020 = 1617690656
+	send_sdo_write_command(0x2F, 0x1A01, 0x01, 1617690656 , driver->node_id);
+
+	//Map the COB ID
+	send_sdo_write_command(0x2B, 0x1801, 0x01, TPDO1_ID + driver->node_id , driver->node_id);
+	//Map the Transmission type : Acyclic synchronous transmission
+	send_sdo_write_command(0x2F, 0x1801, 0x02, 0 , driver->node_id);
+}
+
+void send_sync_message(void)
+{
+	if(enable_read_data)
+	{
+		can_msg_t sync_msg;
+		sync_msg.id = SYNC_ID;
+		sync_msg.len = 8;
+
+		sync_msg.data[0] = 0x00;
+		sync_msg.data[1] = 0x00;
+		sync_msg.data[2] = 0x00;
+		sync_msg.data[3] = 0x00;
+		sync_msg.data[4] = 0x00;
+		sync_msg.data[5] = 0x00;
+		sync_msg.data[6] = 0x00;
+		sync_msg.data[7] = 0x00;
+
+		can_sendTxMsg(&sync_msg);
+	}
 }
 
 

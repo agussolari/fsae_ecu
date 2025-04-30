@@ -25,7 +25,7 @@
  * command: 0x27 = Write 1 byte
  */
 
-bool send_sdo_write_command (uint8_t command, uint16_t od_index, uint8_t od_sub_index, int32_t data, uint16_t node_id)
+bool send_sdo_write_command (uint8_t command, uint16_t od_index, uint8_t od_sub_index, uint32_t data, uint16_t node_id)
 {
 	can_msg_t sdo_msg;
 	sdo_msg.id = 0x600 + node_id;  // COB-ID del SDO
