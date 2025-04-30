@@ -73,7 +73,7 @@ int main(void)
 	SysTick_RegisterCallback(send_sync_message, 10);
 
 
-	SysTick_RegisterCallback(recive_data, 10);
+	SysTick_RegisterCallback(recive_data, 1);
 	SysTick_RegisterCallback(run_sensors, 10);
 
 

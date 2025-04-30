@@ -6,7 +6,7 @@
  * Generated linker script file for LPC55S06
  * Created from linkscript.ldt by FMCreateLinkLibraries
  * Using Freemarker v2.3.30
- * MCUXpresso IDE v24.9 [Build 25] [2024-09-26] on 29 abr. 2025 21:07:30
+ * MCUXpresso IDE v24.9 [Build 25] [2024-09-26] on 30 abr. 2025 18:03:04
  */
 
 INCLUDE "fsae_ecu_Debug_library.ld"

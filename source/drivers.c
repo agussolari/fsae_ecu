@@ -745,10 +745,10 @@ void map_tpdo(driver_t *driver)
 	//Map the COB ID
 	send_sdo_write_command(0x2B, 0x1801, 0x01, TPDO1_ID + driver->node_id , driver->node_id);
 	//Map the Transmission type : Acyclic synchronous transmission
-	send_sdo_write_command(0x2F, 0x1801, 0x02, 0 , driver->node_id);
+	send_sdo_write_command(0x2F, 0x1801, 0x02, 1 , driver->node_id);
 
 	//Generate a SDO Write to save parameters
-	send_sdo_write_command(0x23, 0x1010, 0x01, SAVE_PARAM, node_id);
+	send_sdo_write_command(0x23, 0x1010, 0x01, SAVE_PARAM, driver->node_id);
 }
 
 void send_sync_message(void)
