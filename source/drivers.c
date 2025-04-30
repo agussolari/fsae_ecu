@@ -250,6 +250,10 @@ void update_state_machine(driver_t* driver)
 				driver->nmt_state = NMT_STATE_OPERATIONAL;
                 driver->state = STATE_WAIT_DRIVE;
 
+                //Enable reading data with TPDO messages
+    			enable_read_data = true;
+
+
             break;
 
 
@@ -263,7 +267,6 @@ void update_state_machine(driver_t* driver)
                 send_controlword(0x07, driver->node_id);
                 send_controlword(0x0F, driver->node_id);
 
-    			enable_read_data = true;
 
 
                 driver->state = STATE_DRIVE;
@@ -735,14 +738,17 @@ void map_tpdo(driver_t *driver)
 	send_sdo_write_command(0x2F, 0x1A01, 0x00, 1 , driver->node_id);
 
 	//Map the entries
-	// Velocity 0x606C 0x00 4 bytes
+	// Velocity 0x606C 0x00 32 bits = 20 hexa
 	// 0x606C0020 = 1617690656
-	send_sdo_write_command(0x2F, 0x1A01, 0x01, 1617690656 , driver->node_id);
+	send_sdo_write_command(0x23, 0x1A01, 0x01, 1617690656 , driver->node_id);
 
 	//Map the COB ID
 	send_sdo_write_command(0x2B, 0x1801, 0x01, TPDO1_ID + driver->node_id , driver->node_id);
 	//Map the Transmission type : Acyclic synchronous transmission
 	send_sdo_write_command(0x2F, 0x1801, 0x02, 0 , driver->node_id);
+
+	//Generate a SDO Write to save parameters
+	send_sdo_write_command(0x23, 0x1010, 0x01, SAVE_PARAM, node_id);
 }
 
 void send_sync_message(void)
@@ -751,7 +757,7 @@ void send_sync_message(void)
 	{
 		can_msg_t sync_msg;
 		sync_msg.id = SYNC_ID;
-		sync_msg.len = 8;
+		sync_msg.len = 1;
 
 		sync_msg.data[0] = 0x00;
 		sync_msg.data[1] = 0x00;
