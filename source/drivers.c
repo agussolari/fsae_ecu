@@ -44,6 +44,7 @@ void init_drivers(driver_t* driver)
     driver->nmt_state = NMT_STATE_BOOTUP;
 
 
+
 	//Clean data of the PDO and TPDO
 	for (int i = 0; i < 8; i++) {
 		driver->tpdo1_data.b[i] = 0;
@@ -413,7 +414,17 @@ void send_pdo_message(driver_t *driver)
 	uint32_t interval = TPS_INTERVAL_WAIT; // Default interval is 100ms
 
 	// Read the TPS values
-	driver->tps_value = (tps_data.tps1_value + tps_data.tps2_value)/2;
+	uint16_t sensor_value = (tps_data.tps1_value + tps_data.tps2_value)/2;
+	uint16_t velocity_value = (driver->tpdo2_data.data.actual_velocity);
+
+    // Calculate de factor
+	float factor = (1000.0f - ((float)MAX_DC_CURRENT / (float)(driver->tpdo2_data.data.motor_rated_current)) * 1000.0f) / (float)MAX_VELOCITY;
+
+	// Correct TPS value with velocity
+	// Vel = 0 -> TPS = 1000
+	// Vel = 3000 -> TPS = 50 ADC * (1000/Motor_rated_current)
+	driver->tps_value = (uint16_t)((float)sensor_value - ((float)velocity_value * factor));
+
 
 	driver->tps_time_stamp = millis();
 
@@ -627,6 +638,12 @@ void send_data_rf_uart(void)
     temp = (float)driver_2.tpdo2_data.data.actual_velocity;
     uartWriteMsg((uint8_t*)&temp, sizeof(float));
 
+    temp = (float)driver_1.tps_value;
+    uartWriteMsg((uint8_t*)&temp, sizeof(float));
+
+    temp = (float)driver_2.tps_value;
+    uartWriteMsg((uint8_t*)&temp, sizeof(float));
+
 }
 
 
@@ -641,18 +658,18 @@ void handle_errors(driver_t *driver)
 		driver->nmt_state = NMT_STATE_ERROR;
 		send_nmt_command(NMT_CMD_ENTER_PRE_OPERATIONAL, driver->node_id);
 	}
-	else if (driver->tpdo2_data.data.controller_temperature > 70)
-	{
-		driver->error_code = ERROR_CONTROLLER_OVERTEMP;
-	}
-	else if (driver->tpdo4_data.data.motor_temperature > 70)
-	{
-		driver->error_code = ERROR_MOTOR_OVERTEMP;
-	}
-	else if (driver->tpdo2_data.data.current_demand > 100)
-	{
-		driver->error_code = ERROR_CURRENT;
-	}
+//	else if (driver->tpdo2_data.data.controller_temperature > 70)
+//	{
+//		driver->error_code = ERROR_CONTROLLER_OVERTEMP;
+//	}
+//	else if (driver->tpdo4_data.data.motor_temperature > 70)
+//	{
+//		driver->error_code = ERROR_MOTOR_OVERTEMP;
+//	}
+//	else if (driver->tpdo2_data.data.current_demand > 100)
+//	{
+//		driver->error_code = ERROR_CURRENT;
+//	}
 	else
 	{
 		driver->error_code = ERROR_NONE;
@@ -735,12 +752,15 @@ void set_calibration_2(void)
 void map_tpdo(driver_t *driver)
 {
 	//Map de number of entries
-	send_sdo_write_command(0x2F, 0x1A01, 0x00, 1 , driver->node_id);
+	send_sdo_write_command(0x2F, 0x1A01, 0x00, 2 , driver->node_id);
 
 	//Map the entries
 	// Velocity 0x606C 0x00 32 bits = 20 hexa
 	// 0x606C0020 = 1617690656
 	send_sdo_write_command(0x23, 0x1A01, 0x01, 1617690656 , driver->node_id);
+	// Motor Rated Current 0x6075 0x00 32 bits = 20 hexa
+	// 0x60750020 = 1618280480
+	send_sdo_write_command(0x23, 0x1A01, 0x02, 1618280480 , driver->node_id);
 
 	//Map the COB ID
 	send_sdo_write_command(0x2B, 0x1801, 0x01, TPDO1_ID + driver->node_id , driver->node_id);

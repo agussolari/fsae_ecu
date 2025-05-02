@@ -31,6 +31,10 @@
 
 #define SAVE_PARAM 				(uint32_t)(0x65766173)
 
+#define MAX_VELOCITY			((int32_t)3000) //RPM
+#define MAX_DC_CURRENT			((int32_t)50) //A
+#define MAX_AC_RMS_CURRENT		((int32_t)100) //A
+
 
 
 typedef enum {
@@ -122,9 +126,7 @@ typedef union {
 	uint8_t b[8];
 	struct {
 		int32_t actual_velocity;
-		uint8_t controller_temperature;
-		uint16_t current_demand;
-		uint8_t resv_1;
+		int32_t motor_rated_current;
 	} data;
 } tpdo2_data_t;
 
@@ -195,6 +197,7 @@ typedef struct {
     uint16_t last_tps_value;
     uint32_t tps_time_stamp;
     uint32_t last_tps_time_stamp;
+
 
        //TPDO data
     tpdo1_data_t tpdo1_data;
