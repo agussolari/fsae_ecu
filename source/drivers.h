@@ -33,7 +33,6 @@
 
 #define MAX_VELOCITY			((int32_t)3000) //RPM
 #define MAX_DC_CURRENT			((int32_t)50) //A
-#define MAX_AC_RMS_CURRENT		((int32_t)100) //A
 
 
 
@@ -193,7 +192,7 @@ typedef struct {
     bool bootup_message_received;
 
     //TPS Data
-    uint16_t tps_value;
+    int16_t tps_value;
     uint16_t last_tps_value;
     uint32_t tps_time_stamp;
     uint32_t last_tps_time_stamp;

@@ -57,15 +57,10 @@ void init_buttons(void) {
 // Funcion para leer los sensores y guardar los valores de
 // acelerador y freno en variables globales
 
-#define FILTER_WINDOW_SIZE 25
 
-typedef struct {
-    uint16_t values[FILTER_WINDOW_SIZE];
-    uint8_t index;
-    uint32_t sum;
-} filter_t;
 
-void init_filter(filter_t *filter) {
+void init_filter(filter_t *filter)
+{
     for (int i = 0; i < FILTER_WINDOW_SIZE; i++) {
         filter->values[i] = 0;
     }
@@ -73,7 +68,7 @@ void init_filter(filter_t *filter) {
     filter->sum = 0;
 }
 
-uint16_t apply_filter(filter_t *filter, uint16_t new_value)
+int16_t apply_filter(filter_t *filter, int16_t new_value)
 {
     // Subtract the oldest value from the sum
     filter->sum -= filter->values[filter->index];
@@ -81,19 +76,38 @@ uint16_t apply_filter(filter_t *filter, uint16_t new_value)
     filter->sum += new_value;
     // Store the new value in the array
     filter->values[filter->index] = new_value;
-    // Update the index
+    // Update the indexs
     filter->index = (filter->index + 1) % FILTER_WINDOW_SIZE;
     // Return the average value
-    return (uint16_t)(filter->sum / FILTER_WINDOW_SIZE);
+    return (int16_t)(filter->sum / FILTER_WINDOW_SIZE);
 }
 
 filter_t tps1_filter;
 filter_t tps2_filter;
+filter_t front_brake_filter;
+filter_t rear_brake_filter;
+filter_t direction_filter;
+
+filter_t ac_n1_filter;
+filter_t ac_n2_filter;
+filter_t dc_n1_filter;
+filter_t dc_n2_filter;
+
+
 
 void init_filters(void)
 {
     init_filter(&tps1_filter);
     init_filter(&tps2_filter);
+    init_filter(&front_brake_filter);
+    init_filter(&rear_brake_filter);
+    init_filter(&direction_filter);
+
+    init_filter(&ac_n1_filter);
+    init_filter(&ac_n2_filter);
+    init_filter(&dc_n1_filter);
+    init_filter(&dc_n2_filter);
+
 }
 
 void run_sensors(void) {
@@ -112,8 +126,13 @@ void run_sensors(void) {
 
 
     // Apply the filters
-    uint16_t filtered_tps1 = apply_filter(&tps1_filter, raw_tps1);
-    uint16_t filtered_tps2 = apply_filter(&tps2_filter, raw_tps2);
+    uint16_t filtered_tps1 = (uint16_t)apply_filter(&tps1_filter, raw_tps1);
+    uint16_t filtered_tps2 = (uint16_t)apply_filter(&tps2_filter, raw_tps2);
+    uint16_t filtered_front_brake = (uint16_t)apply_filter(&front_brake_filter, raw_front_brake);
+    uint16_t filtered_rear_brake = (uint16_t)apply_filter(&rear_brake_filter, raw_rear_brake);
+    uint16_t filtered_direction = (uint16_t)apply_filter(&direction_filter, raw_direction);
+
+
 
 
 
@@ -146,11 +165,11 @@ void run_sensors(void) {
 	//Break values in PSI
 	// P [PSI] = 400*(V - 0.5V)
 	// V = raw_value/65535.0 * 3.3
-	front_break_data.brake_value =  (int16_t)(400.0*(((float)(raw_front_brake + front_break_data.calibration_break_value)/65535.0)*3.3 - 0.5));
-	rear_break_data.brake_value =   (int16_t)(400.0*(((float)(raw_rear_brake + rear_break_data.calibration_break_value)/65535.0)*3.3 - 0.5));
+	front_break_data.brake_value =  (int16_t)(400.0*(((float)(filtered_front_brake + front_break_data.calibration_break_value)/65535.0)*3.3 - 0.5));
+	rear_break_data.brake_value =   (int16_t)(400.0*(((float)(filtered_rear_brake + rear_break_data.calibration_break_value)/65535.0)*3.3 - 0.5));
 
 
-	direction_data.direction_value = (int16_t)((float)(raw_direction - direction_data.calibration_direction_value)/32767.0);
+	direction_data.direction_value = (int16_t)((float)(filtered_direction - direction_data.calibration_direction_value)/32767.0);
 
 
 
@@ -159,9 +178,9 @@ void run_sensors(void) {
 	sensor_values.tps1_value = tps_data.tps1_value;
 	sensor_values.tps2_value = tps_data.tps2_value;
 	sensor_values.tps_value = (tps_data.tps1_value + tps_data.tps2_value) / 2;
-	sensor_values.front_brake_value = raw_front_brake;
-	sensor_values.rear_brake_value = raw_rear_brake;
-	sensor_values.direction_value = raw_direction;
+    sensor_values.front_brake_value = front_break_data.brake_value;
+    sensor_values.rear_brake_value = rear_break_data.brake_value;
+    sensor_values.direction_value = direction_data.direction_value;
 }
 
 bool check_implausibility_tps(void)

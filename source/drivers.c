@@ -395,6 +395,12 @@ void recive_current_message(can_msg_t rx_msg)
 		int16_t dc_current_n1 = (int16_t) (rx_msg.data[4] | rx_msg.data[5] << 8);
 		int16_t dc_current_n2 = (int16_t) (rx_msg.data[6] | rx_msg.data[7] << 8);
 
+		//Apply the filter
+		ac_current_n1 = apply_filter(&ac_n1_filter, ac_current_n1);
+		ac_current_n2 = apply_filter(&ac_n2_filter, ac_current_n2);
+		dc_current_n1 = apply_filter(&dc_n1_filter, dc_current_n1);
+		dc_current_n2 = apply_filter(&dc_n2_filter, dc_current_n2);
+
 		//Save the current values
 		current_sense_data.ac_current_n1 = ((float)ac_current_n1)/100.0;
 		current_sense_data.ac_current_n2 = ((float)ac_current_n2)/100.0;
@@ -403,27 +409,72 @@ void recive_current_message(can_msg_t rx_msg)
 	}
 }
 
+void calculate_tps(driver_t *driver, uint16_t sensor_value) {
+    // Constants
+
+}
+
 
 #define TPS_THRESHOLD 10
 #define TPS_INTERVAL_WAIT 100
-#define TPS_INTERVAL_RUN 20
+#define TPS_INTERVAL_RUN 10
 
 
 void send_pdo_message(driver_t *driver)
 {
 	uint32_t interval = TPS_INTERVAL_WAIT; // Default interval is 100ms
 
-	// Read the TPS values
-	uint16_t sensor_value = (tps_data.tps1_value + tps_data.tps2_value)/2;
-	uint16_t velocity_value = (driver->tpdo2_data.data.actual_velocity);
+	//FORM 1
+//	// Read the TPS valuess
+//	uint16_t sensor_value = (tps_data.tps1_value + tps_data.tps2_value)/2;
+//	uint16_t velocity_value = abs(driver->tpdo2_data.data.actual_velocity);
+//
+//    // Calculate de factor
+//	float factor = (1000.0f - ((float)MAX_DC_CURRENT / ((float)(driver->tpdo2_data.data.motor_rated_current)/1000.0f) * 1000.0f)) / (float)MAX_VELOCITY;
+//
+//	// Correct TPS value with velocity
+//	// Vel = 0 -> TPS = 1000
+//	// Vel = 3000 -> TPS = 50 ADC * (1000/Motor_rated_current)
+//	driver->tps_value = (int16_t)((float)sensor_value - ((float)velocity_value * factor));
+//
+//	if(driver->tps_value < 0)
+//	{
+//		driver->tps_value = 0;
+//	}
 
-    // Calculate de factor
-	float factor = (1000.0f - ((float)MAX_DC_CURRENT / (float)(driver->tpdo2_data.data.motor_rated_current)) * 1000.0f) / (float)MAX_VELOCITY;
+    //FORM 2
+	uint16_t sensor_value = (tps_data.tps1_value + tps_data.tps2_value) / 2;
 
-	// Correct TPS value with velocity
-	// Vel = 0 -> TPS = 1000
-	// Vel = 3000 -> TPS = 50 ADC * (1000/Motor_rated_current)
-	driver->tps_value = (uint16_t)((float)sensor_value - ((float)velocity_value * factor));
+    const float motor_rated_current = (float)(driver->tpdo2_data.data.motor_rated_current) / 1000.0f;
+    const float M = ((float)MAX_DC_CURRENT)/motor_rated_current; // Threshold multiplier
+
+    // Get the current velocity
+    float velocity = (float)(abs(driver->tpdo2_data.data.actual_velocity));
+
+    // Calculate TPS
+    float tps = (float)sensor_value;
+
+    if (velocity >= (M * (float)MAX_VELOCITY))
+    {
+        // Calculate IBAT
+        float ifase_rms = (tps / 1000.0f) * motor_rated_current;
+        float ibat = ifase_rms * (velocity / (float)MAX_VELOCITY);
+
+        // Adjust TPS if IBAT exceeds the limit
+        if (ibat > (float)MAX_DC_CURRENT)
+        {
+            tps = (int16_t)(tps * ((float)MAX_DC_CURRENT / ibat));
+        }
+    }
+
+    if(driver->tps_value < 0)
+    {
+    	driver->tps_value = 0;
+    }
+
+    // Assign the calculated TPS value to the driver
+    driver->tps_value = tps;
+
 
 
 	driver->tps_time_stamp = millis();
@@ -514,8 +565,8 @@ bool send_controlword(uint8_t controlword, uint16_t node_id)
         // Wait until Tx is ready
     }
     can_sendTxMsg(&control_msg);
-    int i = 1000000;
-    while(i--);
+//    int i = 1000000;
+//    while(i--);
     PRINTF("Enviado Controlword 0x%02X al ID %03X\n", controlword, control_msg.id);
 
 }

@@ -110,6 +110,17 @@ typedef struct {
 
 } tps_data_t;
 
+#define FILTER_WINDOW_SIZE 50
+
+typedef struct {
+    uint16_t values[FILTER_WINDOW_SIZE];
+    uint8_t index;
+    uint32_t sum;
+} filter_t;
+
+void init_filter(filter_t *filter);
+int16_t apply_filter(filter_t *filter, int16_t new_value);
+
 extern tps_data_t tps_data;
 
 extern break_data_t front_break_data;
@@ -120,5 +131,10 @@ extern direction_data_t direction_data;
 extern sensor_values_t sensor_values;
 
 extern current_sense_data_t current_sense_data;
+
+extern filter_t ac_n1_filter;
+extern filter_t ac_n2_filter;
+extern filter_t dc_n1_filter;
+extern filter_t dc_n2_filter;
 
 #endif /* SENSORS_H_ */
