@@ -424,57 +424,34 @@ void send_pdo_message(driver_t *driver)
 {
 	uint32_t interval = TPS_INTERVAL_WAIT; // Default interval is 100ms
 
-	//FORM 1
-//	// Read the TPS valuess
-//	uint16_t sensor_value = (tps_data.tps1_value + tps_data.tps2_value)/2;
-//	uint16_t velocity_value = abs(driver->tpdo2_data.data.actual_velocity);
-//
-//    // Calculate de factor
-//	float factor = (1000.0f - ((float)MAX_DC_CURRENT / ((float)(driver->tpdo2_data.data.motor_rated_current)/1000.0f) * 1000.0f)) / (float)MAX_VELOCITY;
-//
-//	// Correct TPS value with velocity
-//	// Vel = 0 -> TPS = 1000
-//	// Vel = 3000 -> TPS = 50 ADC * (1000/Motor_rated_current)
-//	driver->tps_value = (int16_t)((float)sensor_value - ((float)velocity_value * factor));
-//
-//	if(driver->tps_value < 0)
-//	{
-//		driver->tps_value = 0;
-//	}
+	// Read the TPS values
+	float sensor_value = (float)(tps_data.tps1_value + tps_data.tps2_value)/(2.0f);
+	float velocity_value = (float) abs(driver->tpdo2_data.data.actual_velocity);
 
-    //FORM 2
-	uint16_t sensor_value = (tps_data.tps1_value + tps_data.tps2_value) / 2;
+	// Calculate the factor
+	float Mmin = (MAX_DC_CURRENT)/((float)(driver->tpdo2_data.data.motor_rated_current)/1000.0f);
 
-    const float motor_rated_current = (float)(driver->tpdo2_data.data.motor_rated_current) / 1000.0f;
-    const float M = ((float)MAX_DC_CURRENT)/motor_rated_current; // Threshold multiplier
+	float M = Mmin;
+	if(sensor_value > 0)
+	{
+		M  = Mmin *(1000.0f / sensor_value);
+	}
 
-    // Get the current velocity
-    float velocity = (float)(abs(driver->tpdo2_data.data.actual_velocity));
+	if(velocity_value > M * MAX_VELOCITY)
+	{
+		//tps = Mmin * 1000.0 * (VEL_MAX / velocity)
+		driver->tps_value = (uint16_t)((Mmin * 1000.0f * MAX_VELOCITY) / velocity_value);
+	}
+	else
+	{
+		driver->tps_value = (uint16_t)sensor_value;
+	}
 
-    // Calculate TPS
-    float tps = (float)sensor_value;
 
-    if (velocity >= (M * (float)MAX_VELOCITY))
-    {
-        // Calculate IBAT
-        float ifase_rms = (tps / 1000.0f) * motor_rated_current;
-        float ibat = ifase_rms * (velocity / (float)MAX_VELOCITY);
-
-        // Adjust TPS if IBAT exceeds the limit
-        if (ibat > (float)MAX_DC_CURRENT)
-        {
-            tps = (int16_t)(tps * ((float)MAX_DC_CURRENT / ibat));
-        }
-    }
-
-    if(driver->tps_value < 0)
-    {
-    	driver->tps_value = 0;
-    }
-
-    // Assign the calculated TPS value to the driver
-    driver->tps_value = tps;
-
+	if(driver->tps_value < 0)
+	{
+		driver->tps_value = 0;
+	}
 
 
 	driver->tps_time_stamp = millis();
@@ -655,46 +632,58 @@ void send_data_gui_uart(driver_t *driver)
 
 }
 
-void send_data_rf_uart(void)
-{
-    // Send the data over UART
-    uint32_t start = 0xFFFFFFFF;
-    uartWriteMsg((uint8_t*)&start, sizeof(start));
+void send_data_rf_uart(void) {
+	// Nivel máximo permitido
+	const float MAX_LEVEL = 5000.0f;
 
-    uartWriteMsg((uint8_t*)&current_sense_data.ac_current_n1, sizeof(float));
-    uartWriteMsg((uint8_t*)&current_sense_data.ac_current_n2, sizeof(float));
-    uartWriteMsg((uint8_t*)&current_sense_data.dc_current_n1, sizeof(float));
-    uartWriteMsg((uint8_t*)&current_sense_data.dc_current_n2, sizeof(float));
+	// Send the data over UART
+	uint32_t start = 0xFFFFFFFF;
+	uartWriteMsg((uint8_t*) &start, sizeof(start));
 
-    float temp;
+	// Helper macro to check and send data
+#define CHECK_AND_SEND(data) \
+        do { \
+            if ((data) > MAX_LEVEL) { \
+                return; \
+            } \
+            uartWriteMsg((uint8_t*)&(data), sizeof(float)); \
+        } while (0)
 
-    temp = (float)tps_data.tps1_value;
-    uartWriteMsg((uint8_t*)&temp, sizeof(float));
+	CHECK_AND_SEND(current_sense_data.ac_current_n1);
+	CHECK_AND_SEND(current_sense_data.ac_current_n2);
+	CHECK_AND_SEND(current_sense_data.dc_current_n1);
+	CHECK_AND_SEND(current_sense_data.dc_current_n2);
 
-    temp = (float)tps_data.tps2_value;
-    uartWriteMsg((uint8_t*)&temp, sizeof(float));
+	float temp;
 
-    temp = (float)front_break_data.brake_value;
-    uartWriteMsg((uint8_t*)&temp, sizeof(float));
+	temp = (float) tps_data.tps1_value;
+	CHECK_AND_SEND(temp);
 
-    temp = (float)rear_break_data.brake_value;
-    uartWriteMsg((uint8_t*)&temp, sizeof(float));
+	temp = (float) tps_data.tps2_value;
+	CHECK_AND_SEND(temp);
 
-    temp = (float)direction_data.direction_value;
-    uartWriteMsg((uint8_t*)&temp, sizeof(float));
+	temp = (float) front_break_data.brake_value;
+	CHECK_AND_SEND(temp);
 
-    temp = (float)driver_1.tpdo2_data.data.actual_velocity;
-    uartWriteMsg((uint8_t*)&temp, sizeof(float));
+	temp = (float) rear_break_data.brake_value;
+	CHECK_AND_SEND(temp);
 
-    temp = (float)driver_2.tpdo2_data.data.actual_velocity;
-    uartWriteMsg((uint8_t*)&temp, sizeof(float));
+	temp = (float) direction_data.direction_value;
+	CHECK_AND_SEND(temp);
 
-    temp = (float)driver_1.tps_value;
-    uartWriteMsg((uint8_t*)&temp, sizeof(float));
+	temp = (float) driver_1.tpdo2_data.data.actual_velocity;
+	CHECK_AND_SEND(temp);
 
-    temp = (float)driver_2.tps_value;
-    uartWriteMsg((uint8_t*)&temp, sizeof(float));
+	temp = (float) driver_2.tpdo2_data.data.actual_velocity;
+	CHECK_AND_SEND(temp);
 
+	temp = (float) driver_1.tps_value;
+	CHECK_AND_SEND(temp);
+
+	temp = (float) driver_2.tps_value;
+	CHECK_AND_SEND(temp);
+
+#undef CHECK_AND_SEND
 }
 
 
@@ -802,7 +791,32 @@ void set_calibration_2(void)
 
 void map_tpdo(driver_t *driver)
 {
-	//Map de number of entries
+	//TPD1
+	//Map de number of entries = 3
+	send_sdo_write_command(0x2F, 0x1A00, 0x00, 3 , driver->node_id);
+	//Map the entries
+	//Motor Temperature 0x2025 0x00 8 bits = 08 hexa
+	// 0x20250008 = 539295752dec
+	send_sdo_write_command(0x23, 0x1A00, 0x01, 539295752 , driver->node_id);
+	//Controller Temperature 0x2026 0x01 8 bits = 08 hexa
+	// 0x20260108 = 539361544dec
+	send_sdo_write_command(0x23, 0x1A00, 0x02, 539361544 , driver->node_id);
+	//DC Link voltage 0x6079 0x00 16 bits = 10 hexa
+	// 0x60790010 = 1618542608
+	send_sdo_write_command(0x23, 0x1A00, 0x03, 1618542608 , driver->node_id);
+
+	//Map the COB ID
+	send_sdo_write_command(0x2B, 0x1800, 0x01, TPDO1_ID + driver->node_id , driver->node_id);
+	//Map the Transmission type : Acyclic synchronous transmission
+	send_sdo_write_command(0x2F, 0x1800, 0x02, 1 , driver->node_id);
+
+	//Generate a SDO Write to save parameters
+	send_sdo_write_command(0x23, 0x1010, 0x01, SAVE_PARAM, driver->node_id);
+
+
+
+	//TPDO2
+	//Map de number of entries = 2
 	send_sdo_write_command(0x2F, 0x1A01, 0x00, 2 , driver->node_id);
 
 	//Map the entries
@@ -814,12 +828,13 @@ void map_tpdo(driver_t *driver)
 	send_sdo_write_command(0x23, 0x1A01, 0x02, 1618280480 , driver->node_id);
 
 	//Map the COB ID
-	send_sdo_write_command(0x2B, 0x1801, 0x01, TPDO1_ID + driver->node_id , driver->node_id);
+	send_sdo_write_command(0x2B, 0x1801, 0x01, TPDO2_ID + driver->node_id , driver->node_id);
 	//Map the Transmission type : Acyclic synchronous transmission
 	send_sdo_write_command(0x2F, 0x1801, 0x02, 1 , driver->node_id);
 
 	//Generate a SDO Write to save parameters
 	send_sdo_write_command(0x23, 0x1010, 0x01, SAVE_PARAM, driver->node_id);
+
 }
 
 void send_sync_message(void)
@@ -843,6 +858,103 @@ void send_sync_message(void)
 	}
 }
 
+
+void send_data_motec(void)
+{
+
+	can_msg_t msg;
+
+	if (can_isTxReady())
+	{
+		//SEND SENSOR DATA
+		// 0x501
+		//b[0], b[1]: TPS Value
+		//b[2], b[3]: Front Brake Value
+		//b[4], b[5]: Rear Brake Value
+		//b[6], b[7]: Direction Value
+
+		msg.id = 0x501;
+
+		msg.data[0] = (uint8_t)(sensor_values.tps_value >> 8);
+		msg.data[1] = (uint8_t)(sensor_values.tps_value);
+
+		msg.data[2] = (uint8_t)(front_break_data.brake_value >> 8);
+		msg.data[3] = (uint8_t)(front_break_data.brake_value);
+
+		msg.data[4] = (uint8_t)(rear_break_data.brake_value >> 8);
+		msg.data[5] = (uint8_t)(rear_break_data.brake_value);
+
+		msg.data[6] = (uint8_t)(direction_data.direction_value >> 8);
+		msg.data[7] = (uint8_t)(direction_data.direction_value);
+
+		msg.len = 8;
+
+		can_sendTxMsg(&msg);
+	}
+
+
+
+	if (can_isTxReady())
+	{
+		//SEND VELOCITY AND TEMPERATURE DATA
+		// 0x502
+		// b[0], b[1]: Driver 1 Velocity
+		// b[2], b[3]: Driver 2 Velocity
+		// b[4], b[5]: Motor Temp Driver 1
+		// b[6], b[7]: Motor Temp Driver 2
+
+		msg.id = 0x502;
+
+		msg.data[0] = (uint8_t) (driver_1.tpdo2_data.data.actual_velocity >> 8);
+		msg.data[1] = (uint8_t) (driver_1.tpdo2_data.data.actual_velocity);
+
+		msg.data[2] = (uint8_t) (driver_2.tpdo2_data.data.actual_velocity >> 8);
+		msg.data[3] = (uint8_t) (driver_2.tpdo2_data.data.actual_velocity);
+
+		msg.data[4] = (uint8_t) (driver_1.tpdo1_data.data.motor_temperature >> 8);
+		msg.data[5] = (uint8_t) (driver_1.tpdo1_data.data.motor_temperature);
+
+		msg.data[6] = (uint8_t) (driver_2.tpdo1_data.data.motor_temperature >> 8);
+		msg.data[7] = (uint8_t) (driver_2.tpdo1_data.data.motor_temperature);
+
+		msg.len = 8;
+
+		can_sendTxMsg(&msg);
+	}
+
+	if (can_isTxReady())
+	{
+		//SEND DC LINK VOLTAGE AND DRIVER TEMP DATA
+		// 0x503
+		// b[0], b[1]: Driver 1 DC Link Voltage
+		// b[2], b[3]: Temperature Driver 1
+		// b[4], b[5]: Temperature Driver 2
+
+		msg.id = 0x503;
+
+		msg.data[0] = (uint8_t) (driver_1.tpdo1_data.data.dc_link_voltage >> 8);
+		msg.data[1] = (uint8_t) (driver_1.tpdo1_data.data.dc_link_voltage);
+
+		msg.data[2] = (uint8_t) (driver_1.tpdo1_data.data.controller_temperature >> 8);
+		msg.data[3] = (uint8_t) (driver_1.tpdo1_data.data.controller_temperature);
+
+		msg.data[4] = (uint8_t) (driver_2.tpdo1_data.data.controller_temperature >> 8);
+		msg.data[5] = (uint8_t) (driver_2.tpdo1_data.data.controller_temperature);
+
+		msg.data[6] = 0x00;
+		msg.data[7] = 0x00;
+
+		msg.len = 8;
+
+		can_sendTxMsg(&msg);
+
+
+	}
+
+
+
+
+}
 
 
 

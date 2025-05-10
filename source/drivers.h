@@ -113,9 +113,9 @@ typedef enum {
 typedef union {
 	uint8_t b[8];
 	struct {
-		uint16_t status_word;
-		int32_t actual_position;
-		int16_t actual_torque;
+		uint8_t motor_temperature;
+		uint8_t controller_temperature;
+		int16_t dc_link_voltage;
 	} data;
 } tpdo1_data_t;
 
@@ -229,6 +229,8 @@ void recive_current_message(can_msg_t rx_msg);
 
 void send_data_gui_uart(driver_t *driver);
 void send_data_rf_uart(void);
+void send_data_motec(void);
+
 
 
 

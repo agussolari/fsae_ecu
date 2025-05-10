@@ -126,58 +126,7 @@ void send_data_led(void)
 	update_leds_by_rpm(tps_data.tps1_value);
 }
 
-void send_data_motec(void)
-{
-	//b[0], b[1]: TPS Value
-	//b[2], b[3]: Front Brake Value
-	//b[4], b[5]: Rear Brake Value
-	//b[6], b[7]: Direction Value
 
-	uint8_t b[8];
-
-	b[0] = (uint8_t)(sensor_values.tps_value >> 8);
-	b[1] = (uint8_t)(sensor_values.tps_value);
-
-	b[2] = (uint8_t)(front_break_data.brake_value >> 8);
-	b[3] = (uint8_t)(front_break_data.brake_value);
-
-	b[4] = (uint8_t)(rear_break_data.brake_value >> 8);
-	b[5] = (uint8_t)(rear_break_data.brake_value);
-
-	b[6] = (uint8_t)(direction_data.direction_value >> 8);
-	b[7] = (uint8_t)(direction_data.direction_value);
-
-	if (can_isTxReady())
-	{
-		can_msg_t msg;
-		msg.id = 0x501;
-		for (int i = 0; i < 8; i++)
-		{
-			msg.data[i] = b[i];
-		}
-		msg.len = 8;
-		can_sendTxMsg(&msg);
-	}
-
-	//SEND VELOCITY DATA
-	// 0x502
-	// b[0], b[1]: Driver 1 Velocity
-	// b[2], b[3]: Driver 2 Velocity
-
-	if (can_isTxReady()) {
-		can_msg_t msg;
-		msg.id = 0x502;
-		msg.data[0] = (uint8_t) (driver_1.tpdo2_data.data.actual_velocity >> 8);
-		msg.data[1] = (uint8_t) (driver_1.tpdo2_data.data.actual_velocity);
-
-		msg.data[2] = (uint8_t) (driver_2.tpdo2_data.data.actual_velocity >> 8);
-		msg.data[3] = (uint8_t) (driver_2.tpdo2_data.data.actual_velocity);
-
-		msg.len = 4;
-		can_sendTxMsg(&msg);
-	}
-
-}
 
 void recive_data(void)
 {
