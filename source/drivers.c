@@ -59,7 +59,7 @@ void init_drivers(driver_t* driver)
 
 void recive_bootup_message(can_msg_t rx_msg)
 {
-	if ((rx_msg.id == (0x700 + NODE_ID_1) && rx_msg.data[0] == 0x7F) && (driver_1.bootup_message_received == false))
+	if ((rx_msg.id == (0x700 + NODE_ID_1) && rx_msg.data[0] == 0x00) && (driver_1.bootup_message_received == false))
 	{
 		uartWriteStr("Boot-up message received from Node 1\n");
 		// Initialize the node
@@ -71,7 +71,7 @@ void recive_bootup_message(can_msg_t rx_msg)
 			driver_1.bootup_message_received = true;
 		}
 	}
-	if ((rx_msg.id == (0x700 + NODE_ID_2) && rx_msg.data[0] == 0x7F) && (driver_2.bootup_message_received == false))
+	if ((rx_msg.id == (0x700 + NODE_ID_2) && rx_msg.data[0] == 0x00) && (driver_2.bootup_message_received == false))
 	{
 		uartWriteStr("Boot-up message received from Node 2\n");
 		// Initialize the node
@@ -242,7 +242,8 @@ void update_state_machine(driver_t* driver)
 
 
         case STATE_START:
-            	send_sdo_mode_of_operation(MODE_TORQUE, driver->node_id);
+//            	send_sdo_mode_of_operation(MODE_TORQUE, driver->node_id);
+        		//Inicialmente se inicia en modo de torque
             	driver->mode = MODE_TORQUE;
             	uartWriteStr("Mode of operation set to MODE_TORQUE\n");
 
@@ -682,6 +683,14 @@ void send_data_rf_uart(void) {
     temp = (float)driver_2.tpdo1_data.data.motor_temperature;
     uartWriteMsg((uint8_t*)&temp, sizeof(float));
 
+    //DC Link voltage
+    temp = (float)driver_1.tpdo1_data.data.dc_link_voltage;
+    uartWriteMsg((uint8_t*)&temp, sizeof(float));
+
+    temp = (float)driver_2.tpdo1_data.data.dc_link_voltage;
+    uartWriteMsg((uint8_t*)&temp, sizeof(float));
+
+
 
 
 }
@@ -906,11 +915,14 @@ void send_data_motec(void)
 
 		msg.id = 0x502;
 
-		msg.data[0] = (uint8_t) (driver_1.tpdo2_data.data.actual_velocity >> 8);
-		msg.data[1] = (uint8_t) (driver_1.tpdo2_data.data.actual_velocity);
+		int32_t vel_1 = (int32_t)((-1)*(driver_1.tpdo2_data.data.actual_velocity)/60);
+		msg.data[0] = (uint8_t) (vel_1 >> 8);
+		msg.data[1] = (uint8_t) (vel_1);
 
-		msg.data[2] = (uint8_t) (driver_2.tpdo2_data.data.actual_velocity >> 8);
-		msg.data[3] = (uint8_t) (driver_2.tpdo2_data.data.actual_velocity);
+		int32_t vel_2 = (int32_t)((-1)*(driver_2.tpdo2_data.data.actual_velocity)/60);
+		msg.data[2] = (uint8_t) (vel_2 >> 8);
+		msg.data[3] = (uint8_t) (vel_2);
+
 
 		msg.data[4] = (uint8_t) (driver_1.tpdo1_data.data.motor_temperature >> 8);
 		msg.data[5] = (uint8_t) (driver_1.tpdo1_data.data.motor_temperature);
@@ -972,11 +984,11 @@ void send_data_motec(void)
 		msg.data[2] = (uint8_t) (temp >> 8);
 		msg.data[3] = (uint8_t) (temp);
 
-		temp = (uint16_t)((10.0)*current_sense_data.dc_current_n1);
+		temp = (uint16_t)((-10.0)*current_sense_data.dc_current_n1);
 		msg.data[4] = (uint8_t) (temp >> 8);
 		msg.data[5] = (uint8_t) (temp);
 
-		temp = (uint16_t)((10.0)*current_sense_data.dc_current_n2);
+		temp = (uint16_t)((-10.0)*current_sense_data.dc_current_n2);
 		msg.data[6] = (uint8_t) (temp >> 8);
 		msg.data[7] = (uint8_t) (temp);
 

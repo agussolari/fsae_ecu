@@ -55,7 +55,7 @@ int main(void)
 	BOARD_InitPins();
 	BOARD_BootClockFROHF96M();
 	SystemCoreClockUpdate();
-//	BOARD_InitDebugConsole();
+	BOARD_InitDebugConsole();
 
 
 	can_init(CAN_BAUDRATE);	//INIT CAN
@@ -66,6 +66,8 @@ int main(void)
 	init_flash();	//INIT FLASH MEMORY
 	millis_init();	//INIT MILLIS
 	SysTick_Init();	//INIT SYSTICK
+
+
 
 
 	//Initialice periodic interrupts
@@ -86,11 +88,12 @@ int main(void)
 
 	init_drivers(&driver_1);	//INIT DRIVER 1
 	init_drivers(&driver_2);	//INIT DRIVER 2
-//	boot_drivers(); //BOOT BOTH DRIVERS
 
+
+
+	boot_drivers(); //BOOT BOTH DRIVERS
 
 	flash_read_calibration_values();	//READ CALIBRATION VALUES FROM FLASH
-
 
 
 	uartWriteStr("Init complete\n");
@@ -138,6 +141,9 @@ void recive_data(void)
 	    recive_bootup_message(rx_msg);
 	    recive_current_message(rx_msg);
 		recive_pdo_message(rx_msg);
+
+
+
 	}
 }
 

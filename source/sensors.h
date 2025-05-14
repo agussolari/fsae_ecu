@@ -23,14 +23,6 @@
 
 
 
-//#define ADC_CHANNEL_TPS1 ADC_CH0A
-//#define ADC_CHANNEL_TPS2 ADC_CH0B
-//
-//#define ADC_CHANNEL_FRONT_BRAKE ADC_CH3A // Canal del ADC que se conecta al freno
-//#define ADC_CHANNEL_REAR_BRAKE ADC_CH3B // Canal del ADC que se conecta a la direccion
-//
-//#define ADC_CHANNEL_DIRECTION ADC_CH2A // Canal del ADC que se conecta a la direccion
-
 #define ADC_CHANNEL_TPS1 ADC_CH0A //OK
 #define ADC_CHANNEL_TPS2 ADC_CH2A //OK
 
@@ -53,6 +45,8 @@
 #define CURRENT_NODE_ID 0x70F
 
 #define ADC_0_5V_VALUE (uint16_t)9930 // 3.3V in ADC units
+
+#define MAX_DEGREE ((float)(3600.0f))
 
 
 

@@ -110,7 +110,7 @@ void run_sensors(void) {
 
 
 
-	direction_data.direction_value = (float)((int32_t)raw_direction - (int32_t)direction_data.calibration_direction_value) / 32767.5f;
+	direction_data.direction_value = (float)((float)raw_direction - (float)direction_data.calibration_direction_value)/((float)(ADC_MAX_VALUE))*MAX_DEGREE;
 
 
 
@@ -192,22 +192,26 @@ void flash_read_calibration_values(void)
 
 	direction_data.calibration_direction_value = (uint16_t)data[6];
 
-	//Initialize the calibration flag
-	if (tps_data.tps1_min_value == 0
-			|| tps_data.tps1_max_value == 0
-			|| tps_data.tps2_min_value == 0
-			|| tps_data.tps2_max_value == 0
-			|| front_break_data.calibration_break_value == 0
-			|| rear_break_data.calibration_break_value == 0
-			|| direction_data.calibration_direction_value == 0)
-	{
-		driver_1.calibration_needed = true;
-		driver_2.calibration_needed = true;
+//	//Initialize the calibration flag
+//	if (tps_data.tps1_min_value == 0
+//			|| tps_data.tps1_max_value == 0
+//			|| tps_data.tps2_min_value == 0
+//			|| tps_data.tps2_max_value == 0
+//			|| front_break_data.calibration_break_value == 0
+//			|| rear_break_data.calibration_break_value == 0
+//			|| direction_data.calibration_direction_value == 0)
+//	{
+//		driver_1.calibration_needed = true;
+//		driver_2.calibration_needed = true;
+//
+//	} else {
+//		driver_1.calibration_needed = false;
+//		driver_2.calibration_needed = false;
+//	}
 
-	} else {
-		driver_1.calibration_needed = false;
-		driver_2.calibration_needed = false;
-	}
+	driver_1.calibration_needed = false;
+	driver_2.calibration_needed = false;
+
 }
 
 
