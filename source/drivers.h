@@ -31,7 +31,7 @@
 
 #define SAVE_PARAM 				(uint32_t)(0x65766173)
 
-#define MAX_VELOCITY			((int32_t)3000) //RPM
+#define MAX_VELOCITY			((int32_t)2500) //RPM
 #define MAX_DC_CURRENT			((int32_t)50) //A
 
 

@@ -28,13 +28,11 @@ void init_flash(void)
 {
 
 
-    /* Print basic information for Flash Driver API.*/
-    PRINTF("\r\nFlash driver API tree Demo Application...\r\n");
     /* Initialize flash driver */
-    PRINTF("Initializing flash driver...\r\n");
+    uartWriteStr("Initializing flash driver...\n");
     if (FLASH_Init(&flashInstance) == kStatus_Success)
     {
-        PRINTF("Flash init successfull!!. Halting...\r\n");
+        uartWriteStr("Flash init successfull!!. Halting...\n");
     }
     else
     {
@@ -46,16 +44,7 @@ void init_flash(void)
     FLASH_GetProperty(&flashInstance, kFLASH_PropertyPflashTotalSize, &pflashTotalSize);
     FLASH_GetProperty(&flashInstance, kFLASH_PropertyPflashPageSize, &PflashPageSize);
 
-    /* print welcome message */
-    PRINTF("\r\n PFlash Example Start \r\n");
-    /* Print flash information - PFlash. */
-    PRINTF("\tkFLASH_PropertyPflashBlockBaseAddr = 0x%X\r\n", pflashBlockBase);
-    PRINTF("\tkFLASH_PropertyPflashSectorSize = %d\r\n", pflashSectorSize);
-    PRINTF("\tkFLASH_PropertyPflashTotalSize = %d\r\n", pflashTotalSize);
-    PRINTF("\tkFLASH_PropertyPflashPageSize = 0x%X\r\n", PflashPageSize);
-
     destAdrss = pflashBlockBase + (pflashTotalSize - (PAGE_INDEX_FROM_END * PflashPageSize));
-    PRINTF("destAdrss: %x\r\n", destAdrss);
 
 
 }
@@ -68,18 +57,18 @@ void erase_flash(void)
 
 void program_flash(uint32_t *data, uint32_t size)
 {
-    PRINTF("\r\nCalling FLASH_Erase() API...\r\n");
+    uartWriteStr("Calling FLASH_Erase() API...\n");
     status = FLASH_Erase(&flashInstance, destAdrss, PflashPageSize, kFLASH_ApiEraseKey);
     verify_status(status);
-    PRINTF("Done!\r\n");
+    uartWriteStr("Done!\n");
 
     /* Verify if the given flash range is successfully erased. */
-    PRINTF("Calling FLASH_VerifyErase() API...\r\n");
+    uartWriteStr("Calling FLASH_VerifyErase() API...\n");
     status = FLASH_VerifyErase(&flashInstance, destAdrss, PflashPageSize);
     verify_status(status);
     if (status == kStatus_Success)
     {
-        PRINTF("FLASH Verify erase successful!\n");
+        uartWriteStr("FLASH Verify erase successful!\n");
     }
     else
     {
@@ -87,19 +76,19 @@ void program_flash(uint32_t *data, uint32_t size)
     }
 
     /* Start programming specified flash region */
-    PRINTF("Calling FLASH_Program() API...\r\n");
+    uartWriteStr("Calling FLASH_Program() API...\n");
     status = FLASH_Program(&flashInstance, destAdrss, (uint8_t *)data, size);
     verify_status(status);
 
     /* Verify if the given flash region is successfully programmed with given data */
-    PRINTF("Calling FLASH_VerifyProgram() API...\r\n");
+    uartWriteStr("Calling FLASH_VerifyProgram() API...\n");
     status = FLASH_VerifyProgram(&flashInstance, destAdrss, size, (uint8_t *)data, &failedAddress,
                                  &failedData);
     verify_status(status);
 
     if (status == kStatus_Success)
     {
-        PRINTF("FLASH Verify Program successful!\n");
+        uartWriteStr("FLASH Verify Program successful!\n");
     }
     else
     {
@@ -113,7 +102,7 @@ void read_flash(uint32_t *data, uint32_t size)
     status = FLASH_VerifyErase(&flashInstance, destAdrss, PflashPageSize);
     if (status == kStatus_Success)
     {
-        PRINTF("Error: trying to Read blank flash page!\n");
+        uartWriteStr("Error: trying to Read blank flash page!\n");
 		for (uint32_t i = 0; i < size; i++)
 		{
 			data[i] = 0;
@@ -122,18 +111,13 @@ void read_flash(uint32_t *data, uint32_t size)
     }
     else
     {
-    	PRINTF("Reading flash memory...\r\n");
+    	uartWriteStr("Reading flash memory...\r\n");
     	/* Verify programming by reading back from flash directly */
         for (uint32_t i = 0; i < size; i++)
         {
         	data[i] = *(volatile uint32_t *)(destAdrss + i * 4);
-        	PRINTF("0x%x ", data[i]);
         }
-        PRINTF("\r\n Successfully Programmed and Verified Location 0x%x -> 0x%x \r\n", destAdrss,
-               (destAdrss + size ));
     }
-
-
 
 }
 
@@ -159,12 +143,11 @@ void verify_status(status_t status) {
 	default:
 		break;
 	}
-	PRINTF("Status: %s\r\n", tipString);
 }
 
 
 void error_trap(void)
 {
-    PRINTF("\r\n\r\n\r\n\t---- HALTED DUE TO FLASH ERROR! ----");
+    uartWriteStr("\r\n\r\n\r\n\t---- HALTED DUE TO FLASH ERROR! ----");
 
 }

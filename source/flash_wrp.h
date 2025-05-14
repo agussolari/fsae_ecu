@@ -9,12 +9,12 @@
 #define FLASH_WRP_H_
 
 #include "common.h"
-#include "fsl_debug_console.h"
 #include "pin_mux.h"
 #include "board.h"
 #include "fsl_iap.h"
 #include "fsl_iap_ffr.h"
 #include "fsl_common.h"
+#include "uart.h"
 
 #define BUFFER_LEN 512 / 4
 #define PAGE_INDEX_FROM_END 1U

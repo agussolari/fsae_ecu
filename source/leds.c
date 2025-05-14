@@ -41,7 +41,7 @@ void init_leds(void)
 	gpioWrite(PIN_LED_R1, !LED_ACTIVE);
 	gpioWrite(PIN_LED_R2, !LED_ACTIVE);
 
-	PRINTF("LEDs initialized\n");
+	uartWriteStr("LEDs initialized\n");
 }
 
 void update_leds_by_state(nmt_state_t nmt_state, driver_state_t driver_state)

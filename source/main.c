@@ -16,7 +16,6 @@
 #include "can.h"
 #include "uart.h"
 #include "gpio.h"
-#include "fsl_debug_console.h"
 #include "can.h"
 #include "leds.h"
 #include "flash_wrp.h"
@@ -37,6 +36,9 @@
 #include "systick.h"
 #include "adc.h"
 
+#define DISABLE_PRINTF
+
+
 void send_data_uart(void);
 void send_data_led(void);
 void send_data_motec(void);
@@ -53,7 +55,7 @@ int main(void)
 	BOARD_InitPins();
 	BOARD_BootClockFROHF96M();
 	SystemCoreClockUpdate();
-	BOARD_InitDebugConsole();
+//	BOARD_InitDebugConsole();
 
 
 	can_init(CAN_BAUDRATE);	//INIT CAN
@@ -84,25 +86,23 @@ int main(void)
 
 	init_drivers(&driver_1);	//INIT DRIVER 1
 	init_drivers(&driver_2);	//INIT DRIVER 2
-	boot_drivers(); //BOOT BOTH DRIVERS
+//	boot_drivers(); //BOOT BOTH DRIVERS
 
 
 	flash_read_calibration_values();	//READ CALIBRATION VALUES FROM FLASH
 
 
 
-	PRINTF("Init complete\n");
+	uartWriteStr("Init complete\n");
 
 
     while (1)
     {
 
        update_state_machine(&driver_1);
-       update_state_machine(&driver_2);
-       //PRINTF BUTTOMS
-//	   PRINTF("START: %d DRIVE: %d STOP: %d\n", gpioRead(START_GPIO_PORT), gpioRead(DRIVE_GPIO_PORT), gpioRead(STOP_GPIO_PORT));
-
        driver_1.time_stamp = millis();
+
+       update_state_machine(&driver_2);
        driver_2.time_stamp = millis();
 
 
@@ -114,8 +114,8 @@ int main(void)
 
 void send_data_uart(void)
 {
-	send_data_gui_uart(&driver_1);
-	send_data_gui_uart(&driver_2);
+//	send_data_gui_uart(&driver_1);
+//	send_data_gui_uart(&driver_2);
 	send_data_rf_uart();
 
 }

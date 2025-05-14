@@ -61,11 +61,11 @@ void recive_bootup_message(can_msg_t rx_msg)
 {
 	if ((rx_msg.id == (0x700 + NODE_ID_1) && rx_msg.data[0] == 0x7F) && (driver_1.bootup_message_received == false))
 	{
-		PRINTF("Boot-up message received from Node 1\n");
+		uartWriteStr("Boot-up message received from Node 1\n");
 		// Initialize the node
 		if (send_sdo_write_command(0x40, 0x1810, 0x01, 0x00000000,NODE_ID_1))
 		{
-			PRINTF("Init SDO command sent from Node 1\n");
+			uartWriteStr("Init SDO command sent from Node 1\n");
 			driver_1.state = STATE_WAIT_START;
 			driver_1.nmt_state = NMT_STATE_BOOTUP;
 			driver_1.bootup_message_received = true;
@@ -73,11 +73,11 @@ void recive_bootup_message(can_msg_t rx_msg)
 	}
 	if ((rx_msg.id == (0x700 + NODE_ID_2) && rx_msg.data[0] == 0x7F) && (driver_2.bootup_message_received == false))
 	{
-		PRINTF("Boot-up message received from Node 2\n");
+		uartWriteStr("Boot-up message received from Node 2\n");
 		// Initialize the node
 		if (send_sdo_write_command(0x40, 0x1810, 0x01, 0x00000000, NODE_ID_2))
 		{
-			PRINTF("Init SDO command sent from Node 2\n");
+			uartWriteStr("Init SDO command sent from Node 2\n");
 			driver_2.state = STATE_WAIT_START;
 			driver_2.nmt_state = NMT_STATE_BOOTUP;
 			driver_2.bootup_message_received = true;
@@ -105,7 +105,7 @@ void boot_drivers(void)
 			map_tpdo(&driver_1);
 			map_tpdo(&driver_2);
 
-			PRINTF("Boot-up complete\n");
+			uartWriteStr("Boot-up complete\n");
 
 			break;
 		}
@@ -114,7 +114,7 @@ void boot_drivers(void)
 		} else if (button_pressed_stop && gpioRead(STOP_GPIO_PORT) == FALSE) {
 			button_pressed_stop = false;
 			// Send again the reset command
-			PRINTF("Resetting nodes\n");
+			uartWriteStr("Resetting nodes\n");
 
 			send_nmt_command(NMT_CMD_RESET_NODE, NODE_ID_1);
 			send_nmt_command(NMT_CMD_RESET_NODE, NODE_ID_2);
@@ -182,7 +182,7 @@ void update_state_machine(driver_t* driver)
             	}
             	else
             	{
-					PRINTF("Start Mode\n");
+					uartWriteStr("Start Mode\n");
 					driver->state = STATE_START;
 					break;
 				}
@@ -244,9 +244,9 @@ void update_state_machine(driver_t* driver)
         case STATE_START:
             	send_sdo_mode_of_operation(MODE_TORQUE, driver->node_id);
             	driver->mode = MODE_TORQUE;
-            	PRINTF("Mode of operation set to MODE_TORQUE\n");
+            	uartWriteStr("Mode of operation set to MODE_TORQUE\n");
 
-				PRINTF("Operational Mode\n");
+				uartWriteStr("Operational Mode\n");
 				send_nmt_command(NMT_CMD_ENTER_OPERATIONAL, driver->node_id);
 				driver->nmt_state = NMT_STATE_OPERATIONAL;
                 driver->state = STATE_WAIT_DRIVE;
@@ -262,7 +262,7 @@ void update_state_machine(driver_t* driver)
         case STATE_WAIT_DRIVE:
             if (gpioRead(DRIVE_GPIO_PORT))
             {
-                PRINTF("Drive Mode\n");
+                uartWriteStr("Drive Mode\n");
 
                 send_controlword(0x06, driver->node_id);
                 send_controlword(0x07, driver->node_id);
@@ -293,7 +293,7 @@ void update_state_machine(driver_t* driver)
             break;
 
         case STATE_STOPPED:
-            PRINTF("Stop Mode\n");
+            uartWriteStr("Stop Mode\n");
 			send_nmt_command(NMT_CMD_ENTER_PRE_OPERATIONAL, driver->node_id);
 			enable_read_data = false;
 
@@ -313,6 +313,7 @@ void update_state_machine(driver_t* driver)
             }
             break;
     }
+
 }
 
 
@@ -395,11 +396,7 @@ void recive_current_message(can_msg_t rx_msg)
 		int16_t dc_current_n1 = (int16_t) (rx_msg.data[4] | rx_msg.data[5] << 8);
 		int16_t dc_current_n2 = (int16_t) (rx_msg.data[6] | rx_msg.data[7] << 8);
 
-		//Apply the filter
-		ac_current_n1 = apply_filter(&ac_n1_filter, ac_current_n1);
-		ac_current_n2 = apply_filter(&ac_n2_filter, ac_current_n2);
-		dc_current_n1 = apply_filter(&dc_n1_filter, dc_current_n1);
-		dc_current_n2 = apply_filter(&dc_n2_filter, dc_current_n2);
+
 
 		//Save the current values
 		current_sense_data.ac_current_n1 = ((float)ac_current_n1)/100.0;
@@ -432,9 +429,14 @@ void send_pdo_message(driver_t *driver)
 	float Mmin = (MAX_DC_CURRENT)/((float)(driver->tpdo2_data.data.motor_rated_current)/1000.0f);
 
 	float M = Mmin;
-	if(sensor_value > 0)
+
+	if(sensor_value > 10.0)
 	{
 		M  = Mmin *(1000.0f / sensor_value);
+	}
+	else
+	{
+		M = 100.0;
 	}
 
 	if(velocity_value > M * MAX_VELOCITY)
@@ -544,8 +546,7 @@ bool send_controlword(uint8_t controlword, uint16_t node_id)
     can_sendTxMsg(&control_msg);
 //    int i = 1000000;
 //    while(i--);
-    PRINTF("Enviado Controlword 0x%02X al ID %03X\n", controlword, control_msg.id);
-
+	uartWriteStr("Controlword sent\n");
 }
 
 
@@ -633,57 +634,56 @@ void send_data_gui_uart(driver_t *driver)
 }
 
 void send_data_rf_uart(void) {
-	// Nivel máximo permitido
-	const float MAX_LEVEL = 5000.0f;
 
 	// Send the data over UART
 	uint32_t start = 0xFFFFFFFF;
 	uartWriteMsg((uint8_t*) &start, sizeof(start));
 
-	// Helper macro to check and send data
-#define CHECK_AND_SEND(data) \
-        do { \
-            if ((data) > MAX_LEVEL) { \
-                return; \
-            } \
-            uartWriteMsg((uint8_t*)&(data), sizeof(float)); \
-        } while (0)
 
-	CHECK_AND_SEND(current_sense_data.ac_current_n1);
-	CHECK_AND_SEND(current_sense_data.ac_current_n2);
-	CHECK_AND_SEND(current_sense_data.dc_current_n1);
-	CHECK_AND_SEND(current_sense_data.dc_current_n2);
+    uartWriteMsg((uint8_t*)&current_sense_data.ac_current_n1, sizeof(float));
+    uartWriteMsg((uint8_t*)&current_sense_data.ac_current_n2, sizeof(float));
+    uartWriteMsg((uint8_t*)&current_sense_data.dc_current_n1, sizeof(float));
+    uartWriteMsg((uint8_t*)&current_sense_data.dc_current_n2, sizeof(float));
 
-	float temp;
 
-	temp = (float) tps_data.tps1_value;
-	CHECK_AND_SEND(temp);
+    float temp;
 
-	temp = (float) tps_data.tps2_value;
-	CHECK_AND_SEND(temp);
+    temp = (float)tps_data.tps1_value;
+    uartWriteMsg((uint8_t*)&temp, sizeof(float));
 
-	temp = (float) front_break_data.brake_value;
-	CHECK_AND_SEND(temp);
+    temp = (float)tps_data.tps2_value;
+    uartWriteMsg((uint8_t*)&temp, sizeof(float));
 
-	temp = (float) rear_break_data.brake_value;
-	CHECK_AND_SEND(temp);
+    temp = (float)front_break_data.brake_value;
+    uartWriteMsg((uint8_t*)&temp, sizeof(float));
 
-	temp = (float) direction_data.direction_value;
-	CHECK_AND_SEND(temp);
+    temp = (float)rear_break_data.brake_value;
+    uartWriteMsg((uint8_t*)&temp, sizeof(float));
 
-	temp = (float) driver_1.tpdo2_data.data.actual_velocity;
-	CHECK_AND_SEND(temp);
+    temp = (float)direction_data.direction_value;
+    uartWriteMsg((uint8_t*)&temp, sizeof(float));
 
-	temp = (float) driver_2.tpdo2_data.data.actual_velocity;
-	CHECK_AND_SEND(temp);
+    temp = (float)driver_1.tpdo2_data.data.actual_velocity;
+    uartWriteMsg((uint8_t*)&temp, sizeof(float));
 
-	temp = (float) driver_1.tps_value;
-	CHECK_AND_SEND(temp);
+    temp = (float)driver_2.tpdo2_data.data.actual_velocity;
+    uartWriteMsg((uint8_t*)&temp, sizeof(float));
 
-	temp = (float) driver_2.tps_value;
-	CHECK_AND_SEND(temp);
+    temp = (float)driver_1.tps_value;
+    uartWriteMsg((uint8_t*)&temp, sizeof(float));
 
-#undef CHECK_AND_SEND
+    temp = (float)driver_2.tps_value;
+    uartWriteMsg((uint8_t*)&temp, sizeof(float));
+
+
+    temp = (float)driver_1.tpdo1_data.data.motor_temperature;
+    uartWriteMsg((uint8_t*)&temp, sizeof(float));
+
+    temp = (float)driver_2.tpdo1_data.data.motor_temperature;
+    uartWriteMsg((uint8_t*)&temp, sizeof(float));
+
+
+
 }
 
 
@@ -731,15 +731,15 @@ void set_calibration_1(void)
 
 	tps_data.tps1_min_value = tps1_min;
 	tps_data.tps2_min_value = tps2_min;
-	PRINTF("TPS 0% value saved TPS1: %d TPS2: %d\n", tps1_min, tps2_min);
+	uartWriteStr("TPS 0 value saved\n");
 
 	//Save the calibration values in flash memory
 	front_break_data.calibration_break_value = ADC_0_5V_VALUE - front_brake;
 	rear_break_data.calibration_break_value = ADC_0_5V_VALUE - rear_brake;
-	PRINTF("Brake calibration value saved Front: %d Rear: %d\n", front_brake, rear_brake);
+	uartWriteStr("Brake calibration value saved Front\n");
 
 	direction_data.calibration_direction_value = direction;
-	PRINTF("Direction calibration value saved: %d\n", direction);
+	uartWriteStr("Direction calibration value saved\n");
 
 	driver_1.state = STATE_CALIBRATION_2;
 	driver_2.state = STATE_IDLE;
@@ -753,7 +753,7 @@ void set_calibration_2(void)
 	tps_data.tps1_max_value = tps1_max;
 	tps_data.tps2_max_value = tps2_max;
 
-	PRINTF("TPS 100% value saved TPS1: %d TPS2: %d\n", tps1_max, tps2_max);
+	uartWriteStr("TPS 100 value saved\n");
 
 
 
@@ -774,7 +774,7 @@ void set_calibration_2(void)
 	driver_1.calibration_needed = false;
 	driver_2.calibration_needed = false;
 
-	PRINTF("Calibration complete\n");
+	uartWriteStr("Calibration complete\n");
 
 	if(driver_1.nmt_state == NMT_STATE_BOOTUP)
 	{
@@ -884,8 +884,9 @@ void send_data_motec(void)
 		msg.data[4] = (uint8_t)(rear_break_data.brake_value >> 8);
 		msg.data[5] = (uint8_t)(rear_break_data.brake_value);
 
-		msg.data[6] = (uint8_t)(direction_data.direction_value >> 8);
-		msg.data[7] = (uint8_t)(direction_data.direction_value);
+		int16_t direction = (int16_t)(100.0f * direction_data.direction_value);
+		msg.data[6] = (uint8_t)(direction >> 8);
+		msg.data[7] = (uint8_t)(direction);
 
 		msg.len = 8;
 
@@ -951,9 +952,39 @@ void send_data_motec(void)
 
 	}
 
+	//CURRENT DATA
+	if (can_isTxReady())
+	{
+		//SEND CURRENT DATA
+		// 0x504
+		// b[0], b[1]: AC Current Driver 1
+		// b[2], b[3]: AC Current Driver 2
+		// b[4], b[5]: DC Current Driver 1
+		// b[6], b[7]: DC Current Driver 2
+
+		msg.id = 0x504;
+
+		uint16_t temp = (uint16_t)((10.0)*current_sense_data.ac_current_n1);
+		msg.data[0] = (uint8_t) (temp >> 8);
+		msg.data[1] = (uint8_t) (temp);
+
+		temp = (uint16_t)((10.0)*current_sense_data.ac_current_n2);
+		msg.data[2] = (uint8_t) (temp >> 8);
+		msg.data[3] = (uint8_t) (temp);
+
+		temp = (uint16_t)((10.0)*current_sense_data.dc_current_n1);
+		msg.data[4] = (uint8_t) (temp >> 8);
+		msg.data[5] = (uint8_t) (temp);
+
+		temp = (uint16_t)((10.0)*current_sense_data.dc_current_n2);
+		msg.data[6] = (uint8_t) (temp >> 8);
+		msg.data[7] = (uint8_t) (temp);
 
 
+		msg.len = 8;
 
+		can_sendTxMsg(&msg);
+	}
 }
 
 

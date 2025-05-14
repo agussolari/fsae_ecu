@@ -15,9 +15,9 @@
 
 
 
-//#define PIN_LED_RED     	PORTNUM2PIN(0,18)
-//#define PIN_LED_GREEN     	PORTNUM2PIN(0,22)
-//#define PIN_LED_BLUE     	PORTNUM2PIN(0,21)
+#define PIN_LED_RED     	PORTNUM2PIN(0,18)
+#define PIN_LED_GREEN     	PORTNUM2PIN(0,22)
+#define PIN_LED_BLUE     	PORTNUM2PIN(0,21)
 //#define LED_ACTIVE			LOW
 
 //Cockpit LEDS

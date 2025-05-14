@@ -19,26 +19,24 @@ tps_data_t tps_data = {0};
 current_sense_data_t current_sense_data = {0};
 
 bool check_breaks(void);
-void init_filters(void);
 
 
 
 void init_sensor(void) {
 	// Inicializo los sensores
-	PRINTF("Starting sensors...\n");
+	uartWriteStr("Starting sensors...\n");
 
 	//Inicializar el ADC para conectar el acelerador
 	adcInit();
-	init_filters();
 
 
 
-	PRINTF("Sensors started\n");
+	uartWriteStr("Sensors started\n");
 }
 
 void init_buttons(void) {
 	// Inicializo los botones
-	PRINTF("Starting buttons...\n");
+	uartWriteStr("Starting buttons...\n");
 
 	//Inicializar los GPIO para conectar los botones
 	gpioMode(START_GPIO_PORT, GPIO_INPUT_PULLDOWN);
@@ -50,7 +48,7 @@ void init_buttons(void) {
 
 
 
-	PRINTF("Buttons started\n");
+	uartWriteStr("Buttons started\n");
 }
 
 
@@ -59,56 +57,9 @@ void init_buttons(void) {
 
 
 
-void init_filter(filter_t *filter)
-{
-    for (int i = 0; i < FILTER_WINDOW_SIZE; i++) {
-        filter->values[i] = 0;
-    }
-    filter->index = 0;
-    filter->sum = 0;
-}
-
-int16_t apply_filter(filter_t *filter, int16_t new_value)
-{
-    // Subtract the oldest value from the sum
-    filter->sum -= filter->values[filter->index];
-    // Add the new value to the sum
-    filter->sum += new_value;
-    // Store the new value in the array
-    filter->values[filter->index] = new_value;
-    // Update the indexs
-    filter->index = (filter->index + 1) % FILTER_WINDOW_SIZE;
-    // Return the average value
-    return (int16_t)(filter->sum / FILTER_WINDOW_SIZE);
-}
-
-filter_t tps1_filter;
-filter_t tps2_filter;
-filter_t front_brake_filter;
-filter_t rear_brake_filter;
-filter_t direction_filter;
-
-filter_t ac_n1_filter;
-filter_t ac_n2_filter;
-filter_t dc_n1_filter;
-filter_t dc_n2_filter;
 
 
 
-void init_filters(void)
-{
-    init_filter(&tps1_filter);
-    init_filter(&tps2_filter);
-    init_filter(&front_brake_filter);
-    init_filter(&rear_brake_filter);
-    init_filter(&direction_filter);
-
-    init_filter(&ac_n1_filter);
-    init_filter(&ac_n2_filter);
-    init_filter(&dc_n1_filter);
-    init_filter(&dc_n2_filter);
-
-}
 
 void run_sensors(void) {
 	// Read the TPS values
@@ -122,19 +73,6 @@ void run_sensors(void) {
 
 	tps_data.tps_time_stamp = millis();
 
-//	PRINTF("TPS1: %d TPS2: %d \n", raw_tps1, raw_tps2);
-
-
-    // Apply the filters
-    uint16_t filtered_tps1 = (uint16_t)apply_filter(&tps1_filter, raw_tps1);
-    uint16_t filtered_tps2 = (uint16_t)apply_filter(&tps2_filter, raw_tps2);
-    uint16_t filtered_front_brake = (uint16_t)apply_filter(&front_brake_filter, raw_front_brake);
-    uint16_t filtered_rear_brake = (uint16_t)apply_filter(&rear_brake_filter, raw_rear_brake);
-    uint16_t filtered_direction = (uint16_t)apply_filter(&direction_filter, raw_direction);
-
-
-
-
 
 
 
@@ -145,7 +83,7 @@ void run_sensors(void) {
 	} else if (raw_tps1 < tps_data.tps1_max_value) {
 		tps_data.tps1_value = 1000;
 	} else {
-	    tps_data.tps1_value = (uint16_t) (((float) (tps_data.tps1_min_value - filtered_tps1)
+	    tps_data.tps1_value = (uint16_t) (((float) (tps_data.tps1_min_value - raw_tps1)
 	            / (tps_data.tps1_min_value - tps_data.tps1_max_value)) * 1000);
     }
 
@@ -155,7 +93,7 @@ void run_sensors(void) {
 	} else if (raw_tps2 > tps_data.tps2_max_value) {
 		tps_data.tps2_value = 1000;
 	} else {
-	    tps_data.tps2_value = (uint16_t) (((float) (filtered_tps2 - tps_data.tps2_min_value)
+	    tps_data.tps2_value = (uint16_t) (((float) (raw_tps2 - tps_data.tps2_min_value)
 	            / (tps_data.tps2_max_value - tps_data.tps2_min_value)) * 1000);
 	}
 
@@ -165,11 +103,14 @@ void run_sensors(void) {
 	//Break values in PSI
 	// P [PSI] = 400*(V - 0.5V)
 	// V = raw_value/65535.0 * 3.3
-	front_break_data.brake_value =  (int16_t)(400.0*(((float)(filtered_front_brake + front_break_data.calibration_break_value)/65535.0)*3.3 - 0.5));
-	rear_break_data.brake_value =   (int16_t)(400.0*(((float)(filtered_rear_brake + rear_break_data.calibration_break_value)/65535.0)*3.3 - 0.5));
+	front_break_data.brake_value =  (int16_t)(400.0*(((float)(raw_front_brake + front_break_data.calibration_break_value)/65535.0)*3.3 - 0.5));
+	rear_break_data.brake_value =   (int16_t)(400.0*(((float)(raw_rear_brake + rear_break_data.calibration_break_value)/65535.0)*3.3 - 0.5));
 
 
-	direction_data.direction_value = (int16_t)((float)(filtered_direction - direction_data.calibration_direction_value)/32767.0);
+
+
+
+	direction_data.direction_value = (float)((int32_t)raw_direction - (int32_t)direction_data.calibration_direction_value) / 32767.5f;
 
 
 

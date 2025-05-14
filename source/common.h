@@ -24,6 +24,7 @@
 //#define DISABLE_PRINTF
 
 #ifdef DISABLE_PRINTF
+
 #define printf(...) ((void)0)
 #endif
 
