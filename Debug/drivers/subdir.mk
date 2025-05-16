@@ -9,12 +9,14 @@ C_SRCS += \
 ../drivers/fsl_common.c \
 ../drivers/fsl_common_arm.c \
 ../drivers/fsl_ctimer.c \
+../drivers/fsl_dma.c \
 ../drivers/fsl_flexcomm.c \
 ../drivers/fsl_gpio.c \
 ../drivers/fsl_iap.c \
 ../drivers/fsl_inputmux.c \
 ../drivers/fsl_lpadc.c \
 ../drivers/fsl_mcan.c \
+../drivers/fsl_pint.c \
 ../drivers/fsl_power.c \
 ../drivers/fsl_reset.c \
 ../drivers/fsl_spi.c \
@@ -26,12 +28,14 @@ C_DEPS += \
 ./drivers/fsl_common.d \
 ./drivers/fsl_common_arm.d \
 ./drivers/fsl_ctimer.d \
+./drivers/fsl_dma.d \
 ./drivers/fsl_flexcomm.d \
 ./drivers/fsl_gpio.d \
 ./drivers/fsl_iap.d \
 ./drivers/fsl_inputmux.d \
 ./drivers/fsl_lpadc.d \
 ./drivers/fsl_mcan.d \
+./drivers/fsl_pint.d \
 ./drivers/fsl_power.d \
 ./drivers/fsl_reset.d \
 ./drivers/fsl_spi.d \
@@ -43,12 +47,14 @@ OBJS += \
 ./drivers/fsl_common.o \
 ./drivers/fsl_common_arm.o \
 ./drivers/fsl_ctimer.o \
+./drivers/fsl_dma.o \
 ./drivers/fsl_flexcomm.o \
 ./drivers/fsl_gpio.o \
 ./drivers/fsl_iap.o \
 ./drivers/fsl_inputmux.o \
 ./drivers/fsl_lpadc.o \
 ./drivers/fsl_mcan.o \
+./drivers/fsl_pint.o \
 ./drivers/fsl_power.o \
 ./drivers/fsl_reset.o \
 ./drivers/fsl_spi.o \
@@ -67,7 +73,7 @@ drivers/%.o: ../drivers/%.c drivers/subdir.mk
 clean: clean-drivers
 
 clean-drivers:
-	-$(RM) ./drivers/fsl_anactrl.d ./drivers/fsl_anactrl.o ./drivers/fsl_clock.d ./drivers/fsl_clock.o ./drivers/fsl_common.d ./drivers/fsl_common.o ./drivers/fsl_common_arm.d ./drivers/fsl_common_arm.o ./drivers/fsl_ctimer.d ./drivers/fsl_ctimer.o ./drivers/fsl_flexcomm.d ./drivers/fsl_flexcomm.o ./drivers/fsl_gpio.d ./drivers/fsl_gpio.o ./drivers/fsl_iap.d ./drivers/fsl_iap.o ./drivers/fsl_inputmux.d ./drivers/fsl_inputmux.o ./drivers/fsl_lpadc.d ./drivers/fsl_lpadc.o ./drivers/fsl_mcan.d ./drivers/fsl_mcan.o ./drivers/fsl_power.d ./drivers/fsl_power.o ./drivers/fsl_reset.d ./drivers/fsl_reset.o ./drivers/fsl_spi.d ./drivers/fsl_spi.o ./drivers/fsl_usart.d ./drivers/fsl_usart.o
+	-$(RM) ./drivers/fsl_anactrl.d ./drivers/fsl_anactrl.o ./drivers/fsl_clock.d ./drivers/fsl_clock.o ./drivers/fsl_common.d ./drivers/fsl_common.o ./drivers/fsl_common_arm.d ./drivers/fsl_common_arm.o ./drivers/fsl_ctimer.d ./drivers/fsl_ctimer.o ./drivers/fsl_dma.d ./drivers/fsl_dma.o ./drivers/fsl_flexcomm.d ./drivers/fsl_flexcomm.o ./drivers/fsl_gpio.d ./drivers/fsl_gpio.o ./drivers/fsl_iap.d ./drivers/fsl_iap.o ./drivers/fsl_inputmux.d ./drivers/fsl_inputmux.o ./drivers/fsl_lpadc.d ./drivers/fsl_lpadc.o ./drivers/fsl_mcan.d ./drivers/fsl_mcan.o ./drivers/fsl_pint.d ./drivers/fsl_pint.o ./drivers/fsl_power.d ./drivers/fsl_power.o ./drivers/fsl_reset.d ./drivers/fsl_reset.o ./drivers/fsl_spi.d ./drivers/fsl_spi.o ./drivers/fsl_usart.d ./drivers/fsl_usart.o
 
 .PHONY: clean-drivers
 

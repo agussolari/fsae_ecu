@@ -33,11 +33,6 @@
 
 #define SENSOR_READ_INTERVAL 100 // Intervalo de lectura de los sensores en ms
 
-#define START_GPIO_PORT 		PORTNUM2PIN(1, 29)
-#define DRIVE_GPIO_PORT 		PORTNUM2PIN(0, 14)
-#define STOP_GPIO_PORT 			PORTNUM2PIN(0, 0)
-
-#define CALIBRATION_GPIO_PORT 	PORTNUM2PIN(0, 26)
 
 #define IMPLAUSIBILITY_THRESHOLD 100 // 100 milliseconds
 #define PEDAL_TRAVEL_THRESHOLD 100 // 10% of 1000
@@ -54,7 +49,6 @@
 void init_sensor(void);
 void flash_read_calibration_values(void);
 
-void init_buttons(void);
 void run_sensors(void);
 bool check_implausibility_tps(void);
 

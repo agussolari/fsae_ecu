@@ -34,22 +34,7 @@ void init_sensor(void) {
 	uartWriteStr("Sensors started\n");
 }
 
-void init_buttons(void) {
-	// Inicializo los botones
-	uartWriteStr("Starting buttons...\n");
 
-	//Inicializar los GPIO para conectar los botones
-	gpioMode(START_GPIO_PORT, GPIO_INPUT_PULLDOWN);
-	gpioMode(DRIVE_GPIO_PORT, GPIO_INPUT_PULLDOWN);
-	gpioMode(STOP_GPIO_PORT, GPIO_INPUT_PULLDOWN);
-
-	//Inicializar los GPIO para conectar los botones
-	gpioMode(CALIBRATION_GPIO_PORT, GPIO_INPUT_PULLUP);
-
-
-
-	uartWriteStr("Buttons started\n");
-}
 
 
 // Funcion para leer los sensores y guardar los valores de

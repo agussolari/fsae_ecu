@@ -6,6 +6,7 @@
 C_SRCS += \
 ../source/SysTick.c \
 ../source/adc.c \
+../source/buttons.c \
 ../source/can.c \
 ../source/can_open.c \
 ../source/drivers.c \
@@ -20,6 +21,7 @@ C_SRCS += \
 C_DEPS += \
 ./source/SysTick.d \
 ./source/adc.d \
+./source/buttons.d \
 ./source/can.d \
 ./source/can_open.d \
 ./source/drivers.d \
@@ -34,6 +36,7 @@ C_DEPS += \
 OBJS += \
 ./source/SysTick.o \
 ./source/adc.o \
+./source/buttons.o \
 ./source/can.o \
 ./source/can_open.o \
 ./source/drivers.o \
@@ -58,7 +61,7 @@ source/%.o: ../source/%.c source/subdir.mk
 clean: clean-source
 
 clean-source:
-	-$(RM) ./source/SysTick.d ./source/SysTick.o ./source/adc.d ./source/adc.o ./source/can.d ./source/can.o ./source/can_open.d ./source/can_open.o ./source/drivers.d ./source/drivers.o ./source/flash_wrp.d ./source/flash_wrp.o ./source/gpio.d ./source/gpio.o ./source/leds.d ./source/leds.o ./source/main.d ./source/main.o ./source/millis.d ./source/millis.o ./source/sensors.d ./source/sensors.o ./source/uart.d ./source/uart.o
+	-$(RM) ./source/SysTick.d ./source/SysTick.o ./source/adc.d ./source/adc.o ./source/buttons.d ./source/buttons.o ./source/can.d ./source/can.o ./source/can_open.d ./source/can_open.o ./source/drivers.d ./source/drivers.o ./source/flash_wrp.d ./source/flash_wrp.o ./source/gpio.d ./source/gpio.o ./source/leds.d ./source/leds.o ./source/main.d ./source/main.o ./source/millis.d ./source/millis.o ./source/sensors.d ./source/sensors.o ./source/uart.d ./source/uart.o
 
 .PHONY: clean-source
 

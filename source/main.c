@@ -19,6 +19,7 @@
 #include "can.h"
 #include "leds.h"
 #include "flash_wrp.h"
+#include "buttons.h"
 
 
 #include "fsl_common.h"
@@ -130,6 +131,20 @@ void send_data_led(void)
 }
 
 
+bool is_bootup_message(uint16_t id, uint8_t node_id) {
+    return id == (BOOTUP_BASE_ID + node_id);
+}
+
+bool is_current_message(uint16_t id) {
+    return id == CURRENT_NODE_ID;
+}
+
+bool is_pdo_message(uint16_t id, uint8_t node_id) {
+    return (id == (TPDO1_ID + node_id)) ||
+           (id == (TPDO2_ID + node_id)) ||
+           (id == (TPDO3_ID + node_id)) ||
+           (id == (TPDO4_ID + node_id));
+}
 
 void recive_data(void)
 {
@@ -138,11 +153,26 @@ void recive_data(void)
 		can_msg_t rx_msg;
 	    can_readRxMsg(&rx_msg);
 
-	    recive_bootup_message(rx_msg);
-	    recive_current_message(rx_msg);
-		recive_pdo_message(rx_msg);
+        uint16_t id = rx_msg.id;
 
+        // Verificar y procesar mensajes
+        if (is_bootup_message(id, NODE_ID_1) || is_bootup_message(id, NODE_ID_2))
+        {
+            recive_bootup_message(rx_msg);
+            return; // Salir después de procesar
+        }
 
+        if (is_current_message(id))
+        {
+            recive_current_message(rx_msg);
+            return; // Salir después de procesar
+        }
+
+        if (is_pdo_message(id, NODE_ID_1) || is_pdo_message(id, NODE_ID_2))
+        {
+            recive_pdo_message(rx_msg);
+            return; // Salir después de procesar
+        }
 
 	}
 }

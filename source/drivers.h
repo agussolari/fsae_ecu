@@ -16,6 +16,8 @@
 #define NODE_ID_2					2
 #define BASE_NODE 				0x100
 #define SYNC_ID 				0x080
+#define BOOTUP_BASE_ID			0x700
+
 
 
 #define SYNC_MESSAGE_ID 		0x080
@@ -105,6 +107,7 @@ typedef enum {
 #include "millis.h"
 #include "uart.h"
 #include "flash_wrp.h"
+#include "buttons.h"
 
 
 

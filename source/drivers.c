@@ -96,7 +96,8 @@ void boot_drivers(void)
 	while (1)
 	{
 		if (driver_1.state == STATE_WAIT_START
-				&& driver_2.state == STATE_WAIT_START) {
+				&& driver_2.state == STATE_WAIT_START)
+		{
 			// Both nodes are ready
 			driver_1.nmt_state = NMT_STATE_PRE_OPERATIONAL;
 			driver_2.nmt_state = NMT_STATE_PRE_OPERATIONAL;
@@ -109,10 +110,10 @@ void boot_drivers(void)
 
 			break;
 		}
-		if (gpioRead(STOP_GPIO_PORT)) {
-			button_pressed_stop = true;
-		} else if (button_pressed_stop && gpioRead(STOP_GPIO_PORT) == FALSE) {
-			button_pressed_stop = false;
+
+		// Check for the boot-up message
+		if(stop_button_pressed())
+		{
 			// Send again the reset command
 			uartWriteStr("Resetting nodes\n");
 
@@ -121,22 +122,16 @@ void boot_drivers(void)
 		}
 
 		// CALIBRATION MODE IF START AND DRIVE BUTTONS ARE PRESSED
-		if (gpioRead(START_GPIO_PORT) && gpioRead(DRIVE_GPIO_PORT)) {
-			button_pressed_calibration = true;
-		} else if (button_pressed_calibration && !gpioRead(START_GPIO_PORT)
-				&& !gpioRead(DRIVE_GPIO_PORT)) {
-			button_pressed_calibration = false;
+		if(start_button_pressed() && drive_button_pressed())
+		{
 			driver_1.state = STATE_CALIBRATION_1;
 			driver_2.state = STATE_IDLE;
 
 			// Wait for calibration step 1 to complete
-			while (driver_1.state == STATE_CALIBRATION_1) {
-				if (gpioRead(START_GPIO_PORT) && gpioRead(DRIVE_GPIO_PORT)) {
-					button_pressed_calibration = true;
-				} else if (button_pressed_calibration
-						&& !gpioRead(START_GPIO_PORT)
-						&& !gpioRead(DRIVE_GPIO_PORT)) {
-					button_pressed_calibration = false;
+			while (driver_1.state == STATE_CALIBRATION_1)
+			{
+				if (start_button_pressed() && drive_button_pressed())
+				{
 					set_calibration_1();
 					driver_1.state = STATE_CALIBRATION_2;
 					driver_2.state = STATE_IDLE;
@@ -144,13 +139,10 @@ void boot_drivers(void)
 			}
 
 			// Wait for calibration step 2 to complete
-			while (driver_1.state == STATE_CALIBRATION_2) {
-				if (gpioRead(START_GPIO_PORT) && gpioRead(DRIVE_GPIO_PORT)) {
-					button_pressed_calibration = true;
-				} else if (button_pressed_calibration
-						&& !gpioRead(START_GPIO_PORT)
-						&& !gpioRead(DRIVE_GPIO_PORT)) {
-					button_pressed_calibration = false;
+			while (driver_1.state == STATE_CALIBRATION_2)
+			{
+				if (start_button_pressed() && drive_button_pressed())
+				{
 					set_calibration_2();
 				    driver_1.nmt_state = NMT_STATE_BOOTUP;
 				    driver_2.nmt_state = NMT_STATE_BOOTUP;
@@ -172,48 +164,28 @@ void update_state_machine(driver_t* driver)
     switch (driver->state) {
 
         case STATE_WAIT_START:
-            if (gpioRead(START_GPIO_PORT))
+            if (start_button_pressed())
             {
-            	if (driver->calibration_needed)
-            	{
-    				driver_1.state = STATE_CALIBRATION_1;
-    				driver_2.state = STATE_IDLE;
-    				break;
-            	}
-            	else
-            	{
-					uartWriteStr("Start Mode\n");
-					driver->state = STATE_START;
-					break;
-				}
+				uartWriteStr("Start Mode\n");
+				driver->state = STATE_START;
+				break;
             }
-			if (gpioRead(CALIBRATION_GPIO_PORT) == FALSE)
+			if (calibration_button_pressed())
 			{
-				button_pressed_calibration = true;
-			}
-			else if (button_pressed_calibration && gpioRead(CALIBRATION_GPIO_PORT) == TRUE)
-			{
-				button_pressed_calibration = false;
-
+				uartWriteStr("Calibration Mode\n");
 				driver_1.state = STATE_CALIBRATION_1;
 				driver_2.state = STATE_IDLE;
-
 				break;
 			}
 			break;
 
         case STATE_CALIBRATION_1:
-            if (gpioRead(CALIBRATION_GPIO_PORT) == FALSE)
+            if (calibration_button_pressed())
             {
-            	button_pressed_calibration = true;
-            }
-            else if (button_pressed_calibration && gpioRead(CALIBRATION_GPIO_PORT) == TRUE)
-            {
-            	button_pressed_calibration = false;
             	set_calibration_1();
             	break;
             }
-            if (gpioRead(STOP_GPIO_PORT) == TRUE)
+            if (stop_button_pressed())
             {
             	driver->state = STATE_WAIT_START;
             	break;
@@ -221,28 +193,22 @@ void update_state_machine(driver_t* driver)
             break;
 
         case STATE_CALIBRATION_2:
-			if (gpioRead(CALIBRATION_GPIO_PORT) == FALSE)
+			if (calibration_button_pressed())
 			{
-				button_pressed_calibration = true;
-			}
-			else if (button_pressed_calibration && gpioRead(CALIBRATION_GPIO_PORT) == TRUE)
-			{
-				button_pressed_calibration = false;
 				set_calibration_2();
 				break;
 			}
-			if (gpioRead(STOP_GPIO_PORT) == TRUE)
-			{
-				driver->state = STATE_WAIT_START;
-				break;
-			}
+            if (stop_button_pressed())
+            {
+            	driver->state = STATE_WAIT_START;
+            	break;
+            }
 			break;
 
 
 
 
         case STATE_START:
-//            	send_sdo_mode_of_operation(MODE_TORQUE, driver->node_id);
         		//Inicialmente se inicia en modo de torque
             	driver->mode = MODE_TORQUE;
             	uartWriteStr("Mode of operation set to MODE_TORQUE\n");
@@ -261,7 +227,7 @@ void update_state_machine(driver_t* driver)
 
 
         case STATE_WAIT_DRIVE:
-            if (gpioRead(DRIVE_GPIO_PORT))
+            if (drive_button_pressed())
             {
                 uartWriteStr("Drive Mode\n");
 
@@ -274,7 +240,7 @@ void update_state_machine(driver_t* driver)
                 driver->state = STATE_DRIVE;
                 driver->nmt_state = NMT_STATE_DRIVE;
             }
-            if (gpioRead(STOP_GPIO_PORT))
+            if (stop_button_pressed())
             {
                 driver->state = STATE_STOPPED;
                 break;
@@ -285,7 +251,7 @@ void update_state_machine(driver_t* driver)
             run_motors(driver);
 //            handle_errors(driver);
 
-            if (gpioRead(STOP_GPIO_PORT))
+            if (stop_button_pressed())
             {
                 driver->state = STATE_STOPPED;
                 break;
