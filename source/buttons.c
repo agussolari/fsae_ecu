@@ -19,62 +19,42 @@ void start_button_callback(pint_pin_int_t pintr, uint32_t pmatch_status)
 {
 
 	// Set the pressed flag and state to true
-	start_button.pressed_flag = true;
+	start_button.pressed_flag = !start_button.pressed_flag;
 }
 
 void drive_button_callback(pint_pin_int_t pintr, uint32_t pmatch_status)
 {
-	drive_button.pressed_flag = true;
+	drive_button.pressed_flag = !drive_button.pressed_flag;
 }
 
 void stop_button_callback(pint_pin_int_t pintr, uint32_t pmatch_status)
 {
-	stop_button.pressed_flag = true;
+	stop_button.pressed_flag = !stop_button.pressed_flag;
 }
 
 void calibration_button_callback(pint_pin_int_t pintr, uint32_t pmatch_status)
 {
-	calibration_button.pressed_flag = true;
+	calibration_button.pressed_flag = !calibration_button.pressed_flag;
 }
 
 
 bool start_button_pressed(void)
 {
-	if (start_button.pressed_flag)
-	{
-		start_button.pressed_flag = false;
-		return true;
-	}
-	return false;
+	return start_button.pressed_flag;
 }
 bool drive_button_pressed(void)
 {
-	if (drive_button.pressed_flag)
-	{
-		drive_button.pressed_flag = false;
-		return true;
-	}
-	return false;
+	return drive_button.pressed_flag;
 }
 
 bool stop_button_pressed(void)
 {
-	if (stop_button.pressed_flag)
-	{
-		stop_button.pressed_flag = false;
-		return true;
-	}
-	return false;
+	return stop_button.pressed_flag;
 }
 
 bool calibration_button_pressed(void)
 {
-	if (calibration_button.pressed_flag)
-	{
-		calibration_button.pressed_flag = false;
-		return true;
-	}
-	return false;
+	return calibration_button.pressed_flag;
 }
 
 
@@ -97,13 +77,13 @@ void init_buttons(void)
 
 	//Configuro la interrupcion de cada boton
 	PINT_PinInterruptConfig(PINT, start_button.pinit_pin,
-			kPINT_PinIntEnableRiseEdge, start_button_callback);
+			kPINT_PinIntEnableBothEdges, start_button_callback);
 	PINT_PinInterruptConfig(PINT, drive_button.pinit_pin,
-			kPINT_PinIntEnableRiseEdge, drive_button_callback);
+			kPINT_PinIntEnableBothEdges, drive_button_callback);
 	PINT_PinInterruptConfig(PINT, stop_button.pinit_pin,
-			kPINT_PinIntEnableRiseEdge, stop_button_callback);
+			kPINT_PinIntEnableBothEdges, stop_button_callback);
 	PINT_PinInterruptConfig(PINT, calibration_button.pinit_pin,
-			kPINT_PinIntEnableFallEdge, calibration_button_callback);
+			kPINT_PinIntEnableBothEdges, calibration_button_callback);
 
 	//Habilito la interrupcion de cada boton
 	PINT_EnableCallbackByIndex(PINT, start_button.pinit_pin);
