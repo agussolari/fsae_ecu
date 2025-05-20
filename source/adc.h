@@ -69,6 +69,11 @@ typedef enum {
 */
 void adcInit (void);
 
+/*
+ * @brief Init DMA for ADC
+ */
+void adcInitDMA (void);
+
 
 /**
  * @brief Performs an ADC reading

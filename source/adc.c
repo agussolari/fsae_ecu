@@ -182,6 +182,11 @@ void adcInit(void)
 
 }
 
+void adcInitDMA(void)
+{
+	LPADC_EnableFIFO0WatermarkDMA(ADC0, true);
+}
+
 
 
 adc_ch_res_t adcReadChannelBlocking(adc_ch_t ch)

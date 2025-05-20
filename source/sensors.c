@@ -7,6 +7,11 @@
 
 #include "sensors.h"
 
+SemaphoreHandle_t adcMutex; // Declarar el mutex
+
+
+void DMA_Callback(dma_handle_t *handle, void *param, bool transferDone, uint32_t tcds);
+
 sensor_values_t sensor_values;
 
 break_data_t front_break_data;
@@ -18,7 +23,78 @@ tps_data_t tps_data = {0};
 
 current_sense_data_t current_sense_data = {0};
 
-bool check_breaks(void);
+//DMA variables
+uint32_t g_AdcConvResult[ADC_CHANNEL_COUNT] = {0};
+uint16_t adc_sensor_values[ADC_CHANNEL_COUNT] = {0};
+
+dma_handle_t g_DmaHandleStruct; /* DMA handler */
+dma_channel_config_t dmaChannelConfigStruct;
+/* DMA descripter table used for ping-pong mode. */
+SDK_ALIGN(uint32_t s_dma_table[DMA_DESCRIPTOR_NUM * sizeof(dma_descriptor_t)],
+		FSL_FEATURE_DMA_LINK_DESCRIPTOR_ALIGN_SIZE);
+
+volatile bool g_DmaTransferDoneFlag = false;
+
+/* Configure DMA */
+static void DMA_Configuration(void)
+{
+
+    uint32_t g_XferConfig = DMA_CHANNEL_XFER(true,                          /* Reload link descriptor after current exhaust, */
+                                    true,                          /* Clear trigger status. */
+                                    true,                          /* Enable interruptA. */
+                                    false,                         /* Not enable interruptB. */
+                                    sizeof(uint32_t),              /* Dma transfer width. */
+                                    kDMA_AddressInterleave0xWidth, /* Dma source address no interleave  */
+                                    kDMA_AddressInterleave1xWidth, /* Dma destination address no interleave  */
+									ADC_CHANNEL_COUNT * sizeof(uint32_t) /* Dma transfer byte. */
+    );
+    /* Initialize DMA */
+    DMA_Init(DMA0);
+    DMA_EnableChannel(DMA0, DMA_ADC_CHANNEL);
+    DMA_CreateHandle(&g_DmaHandleStruct, DMA0, DMA_ADC_CHANNEL);
+    DMA_SetCallback(&g_DmaHandleStruct, DMA_Callback, NULL);
+
+    /* Configure transfer */
+    DMA_PrepareChannelTransfer(&dmaChannelConfigStruct,
+                               (void *)LPADC_RESFIFO_REG_ADDR,
+                               (void *)g_AdcConvResult,
+                               g_XferConfig,
+							   kDMA_PeripheralToMemory,
+                               NULL,
+							   (dma_descriptor_t *)&(s_dma_table[0])
+							   );
+
+    DMA_SubmitChannelTransfer(&g_DmaHandleStruct, &dmaChannelConfigStruct);
+
+    /* Set two DMA descripters to use ping-pong mode.  */
+    DMA_SetupDescriptor((dma_descriptor_t *)&(s_dma_table[0]), g_XferConfig, (void *)LPADC_RESFIFO_REG_ADDR,
+                        (void *)g_AdcConvResult, (dma_descriptor_t *)&(s_dma_table[4]));
+    DMA_SetupDescriptor((dma_descriptor_t *)&(s_dma_table[4]), g_XferConfig, (void *)LPADC_RESFIFO_REG_ADDR,
+                        (void *)g_AdcConvResult, (dma_descriptor_t *)&(s_dma_table[0]));
+}
+
+void DMA_Callback(dma_handle_t *handle, void *param, bool transferDone, uint32_t tcds)
+{
+	if (transferDone)
+	{
+		g_DmaTransferDoneFlag = true;
+
+		for (int i = 0; i < ADC_CHANNEL_COUNT; i++)
+		{
+			uint32_t raw_data = g_AdcConvResult[i];
+			uint16_t adc_value = (uint16_t) (raw_data & 0xFFFF); // Extract bits 0:15
+			uint8_t trigger_source = (uint8_t) ((raw_data >> 16) & 0x0F); // Extract bits 19:16
+
+            // Map trigger source to corresponding channel or action
+	        if (xSemaphoreTake(adcMutex, portMAX_DELAY) == pdTRUE)
+	        {
+	        	adc_sensor_values[trigger_source] = adc_value;
+	            xSemaphoreGive(adcMutex); // Liberar el mutex
+
+	        }
+		}
+	}
+}
 
 
 
@@ -26,8 +102,17 @@ void init_sensor(void) {
 	// Inicializo los sensores
 	uartWriteStr("Starting sensors...\n");
 
-	//Inicializar el ADC para conectar el acelerador
+    adcMutex = xSemaphoreCreateMutex();
+    if (adcMutex == NULL) {
+        uartWriteStr("Failed to create ADC mutex\n");
+        return;
+    }
+
+
+	//Inicializar el ADC
 	adcInit();
+	adcInitDMA();
+
 
 
 
@@ -41,20 +126,43 @@ void init_sensor(void) {
 // acelerador y freno en variables globales
 
 
+void trigger_adc(void)
+{
+	if (g_DmaTransferDoneFlag == false)
+	{
+		return;
+	}
+
+	// Start the ADC conversion
+    g_DmaTransferDoneFlag = false;
+
+    LPADC_DoSoftwareTrigger(ADC0,
+    			(1 << ADC_CHANNEL_TPS1) |
+				(1 << ADC_CHANNEL_TPS2) |
+				(1 << ADC_CHANNEL_REAR_BRAKE) |
+				(1 << ADC_CHANNEL_FRONT_BRAKE) |
+				(1 << ADC_CHANNEL_DIRECTION)
+				);
+    DMA_StartTransfer(&g_DmaHandleStruct);
+
+}
 
 
 
 
+void run_sensors(void)
+{
 
-void run_sensors(void) {
-	// Read the TPS values
-	uint16_t raw_tps1 = adcReadChannelBlocking(ADC_CHANNEL_TPS1);
-	uint16_t raw_tps2 = adcReadChannelBlocking(ADC_CHANNEL_TPS2);
+	trigger_adc();
 
-	uint16_t raw_front_brake = adcReadChannelBlocking(ADC_CHANNEL_FRONT_BRAKE);
-	uint16_t raw_rear_brake = adcReadChannelBlocking(ADC_CHANNEL_REAR_BRAKE);
-
-	uint16_t raw_direction = adcReadChannelBlocking(ADC_CHANNEL_DIRECTION);
+    // Tomar el mutex antes de leer adc_sensor_values
+    if (xSemaphoreTake(adcMutex, portMAX_DELAY) == pdTRUE) {
+        uint16_t raw_tps1 = adc_sensor_values[ADC_CHANNEL_TPS1];
+        uint16_t raw_tps2 = adc_sensor_values[ADC_CHANNEL_TPS2];
+        uint16_t raw_front_brake = adc_sensor_values[ADC_CHANNEL_FRONT_BRAKE];
+        uint16_t raw_rear_brake = adc_sensor_values[ADC_CHANNEL_REAR_BRAKE];
+        uint16_t raw_direction = adc_sensor_values[ADC_CHANNEL_DIRECTION];
+        xSemaphoreGive(adcMutex); // Liberar el mutex
 
 	tps_data.tps_time_stamp = millis();
 
@@ -141,20 +249,6 @@ bool check_implausibility_tps(void)
 	return false; // If the implausibility condition is not detected or has not been detected for too long, return false
 }
 
-
-bool check_breaks(void)
-{
-	// Check if the front and rear brakes are both pressed
-	if (front_break_data.brake_value
-			> (front_break_data.calibration_break_value * 1.1)
-			&& rear_break_data.brake_value
-					> (rear_break_data.calibration_break_value * 1.1)) {
-		// STOP TPS
-		return true;
-	}
-
-	return false;
-}
 
 
 void flash_read_calibration_values(void)

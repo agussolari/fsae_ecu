@@ -10,15 +10,13 @@
 
 #include "common.h"
 #include "adc.h"
-#include "fsl_debug_console.h"
 #include "gpio.h"
 #include "millis.h"
+#include "fsl_dma.h"
+#include "flash_wrp.h"
 #include "drivers.h"
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <time.h>
-#include <math.h>
+#include "fsl_dma.h"
+#include "fsl_lpadc.h"
 
 
 
@@ -43,6 +41,11 @@
 
 #define MAX_DEGREE ((float)(3600.0f))
 
+#define ADC_CHANNEL_COUNT ADC_CANT_CH /* Number of ADC channels */
+#define DMA_DESCRIPTOR_NUM  2U /* Number of DMA descriptors */
+#define LPADC_RESFIFO_REG_ADDR      ((uint32_t)(&(ADC0->RESFIFO[0])))
+#define ADC_USER_CMDID            1U /* CMD1 */
+#define DMA_ADC_CHANNEL             21U
 
 
 
@@ -98,16 +101,7 @@ typedef struct {
 
 } tps_data_t;
 
-#define FILTER_WINDOW_SIZE 50
 
-typedef struct {
-    uint16_t values[FILTER_WINDOW_SIZE];
-    uint8_t index;
-    uint32_t sum;
-} filter_t;
-
-void init_filter(filter_t *filter);
-int16_t apply_filter(filter_t *filter, int16_t new_value);
 
 extern tps_data_t tps_data;
 
@@ -120,9 +114,5 @@ extern sensor_values_t sensor_values;
 
 extern current_sense_data_t current_sense_data;
 
-extern filter_t ac_n1_filter;
-extern filter_t ac_n2_filter;
-extern filter_t dc_n1_filter;
-extern filter_t dc_n2_filter;
 
 #endif /* SENSORS_H_ */
