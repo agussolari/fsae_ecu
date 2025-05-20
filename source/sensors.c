@@ -6,6 +6,7 @@
  */
 
 #include "sensors.h"
+//#include "FreeRTOS.h"
 
 SemaphoreHandle_t adcMutex; // Declarar el mutex
 
@@ -22,6 +23,14 @@ direction_data_t direction_data;
 tps_data_t tps_data = {0};
 
 current_sense_data_t current_sense_data = {0};
+
+static uint16_t raw_tps1 = 0;
+static uint16_t raw_tps2 = 0;
+static uint16_t raw_front_brake = 0;
+static uint16_t raw_rear_brake = 0;
+static uint16_t raw_direction = 0;
+
+
 
 //DMA variables
 uint32_t g_AdcConvResult[ADC_CHANNEL_COUNT] = {0};
@@ -156,13 +165,15 @@ void run_sensors(void)
 	trigger_adc();
 
     // Tomar el mutex antes de leer adc_sensor_values
-    if (xSemaphoreTake(adcMutex, portMAX_DELAY) == pdTRUE) {
+    if (xSemaphoreTake(adcMutex, portMAX_DELAY) == pdTRUE)
+    {
         uint16_t raw_tps1 = adc_sensor_values[ADC_CHANNEL_TPS1];
         uint16_t raw_tps2 = adc_sensor_values[ADC_CHANNEL_TPS2];
         uint16_t raw_front_brake = adc_sensor_values[ADC_CHANNEL_FRONT_BRAKE];
         uint16_t raw_rear_brake = adc_sensor_values[ADC_CHANNEL_REAR_BRAKE];
         uint16_t raw_direction = adc_sensor_values[ADC_CHANNEL_DIRECTION];
         xSemaphoreGive(adcMutex); // Liberar el mutex
+    }
 
 	tps_data.tps_time_stamp = millis();
 
