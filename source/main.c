@@ -55,7 +55,7 @@ int main(void)
 	BOARD_InitPins();
 	BOARD_BootClockFROHF96M();
 	SystemCoreClockUpdate();
-	BOARD_InitDebugConsole();
+//	BOARD_InitDebugConsole();
 
 
 	can_init(CAN_BAUDRATE);	//INIT CAN
@@ -107,6 +107,8 @@ int main(void)
 
        update_state_machine(&driver_2);
        driver_2.time_stamp = millis();
+    	//PRINTF GPIOS
+//    	PRINTF("%d %d %d\n", gpioRead(START_GPIO_PORT), gpioRead(DRIVE_GPIO_PORT), gpioRead(STOP_GPIO_PORT));
 
 
     }

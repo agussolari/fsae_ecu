@@ -110,7 +110,7 @@ void run_sensors(void) {
 
 
 
-	direction_data.direction_value = (float)((float)raw_direction - (float)direction_data.calibration_direction_value)/((float)(ADC_MAX_VALUE))*MAX_DEGREE;
+	direction_data.direction_value = (float)((float)raw_direction - (float)direction_data.calibration_direction_value)/((float)(ADC_MAX_VALUE))*MAX_DEGREE*STEAR_RELATION;
 
 
 
