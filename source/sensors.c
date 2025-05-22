@@ -7,8 +7,8 @@
 
 #include "sensors.h"
 
-#include "FreeRTOS.h"
-#include "semphr.h"
+//#include "FreeRTOS.h"
+//#include "semphr.h"
 
 
 /* Freescale includes. */
@@ -18,7 +18,7 @@
 #include "clock_config.h"
 #include "board.h"
 
-SemaphoreHandle_t adcMutex; // Declarar el mutex
+//SemaphoreHandle_t adcMutex; // Declarar el mutex
 
 
 void DMA_Callback(dma_handle_t *handle, void *param, bool transferDone, uint32_t tcds);
@@ -104,13 +104,13 @@ void DMA_Callback(dma_handle_t *handle, void *param, bool transferDone, uint32_t
 			uint16_t adc_value = (uint16_t) (raw_data & 0xFFFF); // Extract bits 0:15
 			uint8_t trigger_source = (uint8_t) ((raw_data >> 16) & 0x0F); // Extract bits 19:16
 
-            // Map trigger source to corresponding channel or action
-	        if (xSemaphoreTake(adcMutex, portMAX_DELAY) == pdTRUE)
-	        {
+//            // Map trigger source to corresponding channel or action
+//	        if (xSemaphoreTake(adcMutex, portMAX_DELAY) == pdTRUE)
+//	        {
 	        	adc_sensor_values[trigger_source] = adc_value;
-	            xSemaphoreGive(adcMutex); // Liberar el mutex
-
-	        }
+//	            xSemaphoreGive(adcMutex); // Liberar el mutex
+//
+//	        }
 		}
 	}
 }
@@ -175,15 +175,15 @@ void run_sensors(void)
 	trigger_adc();
 
     // Tomar el mutex antes de leer adc_sensor_values
-    if (xSemaphoreTake(adcMutex, portMAX_DELAY) == pdTRUE)
-    {
+//    if (xSemaphoreTake(adcMutex, portMAX_DELAY) == pdTRUE)
+//    {
         uint16_t raw_tps1 = adc_sensor_values[ADC_CHANNEL_TPS1];
         uint16_t raw_tps2 = adc_sensor_values[ADC_CHANNEL_TPS2];
         uint16_t raw_front_brake = adc_sensor_values[ADC_CHANNEL_FRONT_BRAKE];
         uint16_t raw_rear_brake = adc_sensor_values[ADC_CHANNEL_REAR_BRAKE];
         uint16_t raw_direction = adc_sensor_values[ADC_CHANNEL_DIRECTION];
         xSemaphoreGive(adcMutex); // Liberar el mutex
-    }
+//    }
 
 	tps_data.tps_time_stamp = millis();
 
@@ -224,7 +224,7 @@ void run_sensors(void)
 
 
 
-	direction_data.direction_value = (float)((float)raw_direction - (float)direction_data.calibration_direction_value)/((float)(ADC_MAX_VALUE))*MAX_DEGREE;
+	direction_data.direction_value = (float)((float)raw_direction - (float)direction_data.calibration_direction_value)/((float)((ADC_MAX_VALUE)/2))*MAX_DEGREE*STEARING_RELATION;
 
 
 
@@ -292,27 +292,32 @@ void flash_read_calibration_values(void)
 
 	direction_data.calibration_direction_value = (uint16_t)data[6];
 
-//	//Initialize the calibration flag
-//	if (tps_data.tps1_min_value == 0
-//			|| tps_data.tps1_max_value == 0
-//			|| tps_data.tps2_min_value == 0
-//			|| tps_data.tps2_max_value == 0
-//			|| front_break_data.calibration_break_value == 0
-//			|| rear_break_data.calibration_break_value == 0
-//			|| direction_data.calibration_direction_value == 0)
-//	{
-//		driver_1.calibration_needed = true;
-//		driver_2.calibration_needed = true;
-//
-//	} else {
-//		driver_1.calibration_needed = false;
-//		driver_2.calibration_needed = false;
-//	}
+
 
 	driver_1.calibration_needed = false;
 	driver_2.calibration_needed = false;
 
 }
 
+
+void recive_current_message(can_msg_t rx_msg)
+{
+	if (rx_msg.id == CURRENT_NODE_ID)
+	{
+		//Convert int16_t to float
+		int16_t ac_current_n1 = (int16_t) (rx_msg.data[0] | rx_msg.data[1] << 8);
+		int16_t ac_current_n2 = (int16_t) (rx_msg.data[2] | rx_msg.data[3] << 8);
+		int16_t dc_current_n1 = (int16_t) (rx_msg.data[4] | rx_msg.data[5] << 8);
+		int16_t dc_current_n2 = (int16_t) (rx_msg.data[6] | rx_msg.data[7] << 8);
+
+
+
+		//Save the current values
+		current_sense_data.ac_current_n1 = ((float)ac_current_n1)/100.0;
+		current_sense_data.ac_current_n2 = ((float)ac_current_n2)/100.0;
+		current_sense_data.dc_current_n1 = ((float)dc_current_n1)/100.0;
+		current_sense_data.dc_current_n2 = ((float)dc_current_n2)/100.0;
+	}
+}
 
 

@@ -34,7 +34,7 @@
 #include "board.h"
 
 #include "sensors.h"
-#include "systick.h"
+#include "SysTick.h"
 #include "adc.h"
 
 #define DISABLE_PRINTF
@@ -79,7 +79,7 @@ int main(void)
 
 
 	SysTick_RegisterCallback(recive_data, 1);
-	SysTick_RegisterCallback(run_sensors, 10);
+//	SysTick_RegisterCallback(run_sensors, 10);
 
 
 	//Init drivers

@@ -17,6 +17,7 @@
 #include "drivers.h"
 #include "fsl_dma.h"
 #include "fsl_lpadc.h"
+#include "can.h"
 
 
 
@@ -39,7 +40,9 @@
 
 #define ADC_0_5V_VALUE (uint16_t)9930 // 3.3V in ADC units
 
-#define MAX_DEGREE ((float)(3600.0f))
+#define MAX_DEGREE ((float)(1800.0f))
+#define STEARING_RELATION ((float)(0.5f))
+
 
 #define ADC_CHANNEL_COUNT ADC_CANT_CH /* Number of ADC channels */
 #define DMA_DESCRIPTOR_NUM  2U /* Number of DMA descriptors */
@@ -54,6 +57,8 @@ void flash_read_calibration_values(void);
 
 void run_sensors(void);
 bool check_implausibility_tps(void);
+void recive_current_message(can_msg_t rx_msg);
+
 
 
 typedef struct

@@ -166,13 +166,11 @@ void update_state_machine(driver_t* driver)
         case STATE_WAIT_START:
             if (start_button_pressed())
             {
-				uartWriteStr("Start Mode\n");
 				driver->state = STATE_START;
 				break;
             }
 			if (calibration_button_pressed())
 			{
-				uartWriteStr("Calibration Mode\n");
 				driver_1.state = STATE_CALIBRATION_1;
 				driver_2.state = STATE_IDLE;
 				break;
@@ -211,11 +209,10 @@ void update_state_machine(driver_t* driver)
         case STATE_START:
         		//Inicialmente se inicia en modo de torque
             	driver->mode = MODE_TORQUE;
-            	uartWriteStr("Mode of operation set to MODE_TORQUE\n");
 
-				uartWriteStr("Operational Mode\n");
 				send_nmt_command(NMT_CMD_ENTER_OPERATIONAL, driver->node_id);
 				driver->nmt_state = NMT_STATE_OPERATIONAL;
+
                 driver->state = STATE_WAIT_DRIVE;
 
                 //Enable reading data with TPDO messages
@@ -229,8 +226,7 @@ void update_state_machine(driver_t* driver)
         case STATE_WAIT_DRIVE:
             if (drive_button_pressed())
             {
-                uartWriteStr("Drive Mode\n");
-
+                // Send the control word to enable the driver
                 send_controlword(0x06, driver->node_id);
                 send_controlword(0x07, driver->node_id);
                 send_controlword(0x0F, driver->node_id);
@@ -260,7 +256,6 @@ void update_state_machine(driver_t* driver)
             break;
 
         case STATE_STOPPED:
-            uartWriteStr("Stop Mode\n");
 			send_nmt_command(NMT_CMD_ENTER_PRE_OPERATIONAL, driver->node_id);
 			enable_read_data = false;
 
@@ -353,30 +348,8 @@ void recive_pdo_message(can_msg_t rx_msg)
 
 }
 
-void recive_current_message(can_msg_t rx_msg)
-{
-	if (rx_msg.id == CURRENT_NODE_ID)
-	{
-		//Convert int16_t to float
-		int16_t ac_current_n1 = (int16_t) (rx_msg.data[0] | rx_msg.data[1] << 8);
-		int16_t ac_current_n2 = (int16_t) (rx_msg.data[2] | rx_msg.data[3] << 8);
-		int16_t dc_current_n1 = (int16_t) (rx_msg.data[4] | rx_msg.data[5] << 8);
-		int16_t dc_current_n2 = (int16_t) (rx_msg.data[6] | rx_msg.data[7] << 8);
 
 
-
-		//Save the current values
-		current_sense_data.ac_current_n1 = ((float)ac_current_n1)/100.0;
-		current_sense_data.ac_current_n2 = ((float)ac_current_n2)/100.0;
-		current_sense_data.dc_current_n1 = ((float)dc_current_n1)/100.0;
-		current_sense_data.dc_current_n2 = ((float)dc_current_n2)/100.0;
-	}
-}
-
-void calculate_tps(driver_t *driver, uint16_t sensor_value) {
-    // Constants
-
-}
 
 
 #define TPS_THRESHOLD 10
@@ -511,9 +484,7 @@ bool send_controlword(uint8_t controlword, uint16_t node_id)
         // Wait until Tx is ready
     }
     can_sendTxMsg(&control_msg);
-//    int i = 1000000;
-//    while(i--);
-	uartWriteStr("Controlword sent\n");
+
 }
 
 
@@ -540,21 +511,11 @@ bool send_sdo_mode_of_operation(int8_t mode, uint16_t node_id)
 
 	send_sdo_write_command(0x2F, 0x6060, 0x00, (int32_t)mode, node_id);
 
-	//Wait for controller response
-	while(!recive_sdo_write_command(0x60, 0x6060, 0x00, 0x00000000, node_id))
-	{
-		//Generate a SDO Write to save parameters
-		send_sdo_write_command(0x23, 0x1010, 0x01, SAVE_PARAM, node_id);
 
-		//Wait for controller response
-		while(!recive_sdo_write_command(0x60, 0x1010, 0x01, 0x00000000, node_id))
-		{
-			//Use NMT command to Reset Node
-//			send_nmt_command(0x81, node_id); //Reset Node command
-			return 1;
+	//Generate a SDO Write to save parameters
+	send_sdo_write_command(0x23, 0x1010, 0x01, SAVE_PARAM, node_id);
 
-		}
-	}
+    return true;
 
 }
 

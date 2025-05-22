@@ -228,7 +228,6 @@ void update_state_machine(driver_t* driver);
 
 void recive_bootup_message(can_msg_t rx_msg);
 void recive_pdo_message(can_msg_t rx_msg);
-void recive_current_message(can_msg_t rx_msg);
 
 void send_data_gui_uart(driver_t *driver);
 void send_data_rf_uart(void);

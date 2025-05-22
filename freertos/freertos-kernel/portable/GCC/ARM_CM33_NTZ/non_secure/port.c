@@ -999,27 +999,27 @@ void vPortExitCritical( void ) /* PRIVILEGED_FUNCTION */
 }
 /*-----------------------------------------------------------*/
 
-//void SysTick_Handler( void ) /* PRIVILEGED_FUNCTION */
-//{
-//    uint32_t ulPreviousMask;
-//
-//    ulPreviousMask = portSET_INTERRUPT_MASK_FROM_ISR();
-//    traceISR_ENTER();
-//    {
-//        /* Increment the RTOS tick. */
-//        if( xTaskIncrementTick() != pdFALSE )
-//        {
-//            traceISR_EXIT_TO_SCHEDULER();
-//            /* Pend a context switch. */
-//            portNVIC_INT_CTRL_REG = portNVIC_PENDSVSET_BIT;
-//        }
-//        else
-//        {
-//            traceISR_EXIT();
-//        }
-//    }
-//    portCLEAR_INTERRUPT_MASK_FROM_ISR( ulPreviousMask );
-//}
+void SysTick_Handler( void ) /* PRIVILEGED_FUNCTION */
+{
+    uint32_t ulPreviousMask;
+
+    ulPreviousMask = portSET_INTERRUPT_MASK_FROM_ISR();
+    traceISR_ENTER();
+    {
+        /* Increment the RTOS tick. */
+        if( xTaskIncrementTick() != pdFALSE )
+        {
+            traceISR_EXIT_TO_SCHEDULER();
+            /* Pend a context switch. */
+            portNVIC_INT_CTRL_REG = portNVIC_PENDSVSET_BIT;
+        }
+        else
+        {
+            traceISR_EXIT();
+        }
+    }
+    portCLEAR_INTERRUPT_MASK_FROM_ISR( ulPreviousMask );
+}
 /*-----------------------------------------------------------*/
 
 void vPortSVCHandler_C( uint32_t * pulCallerStackAddress ) /* PRIVILEGED_FUNCTION portDONT_DISCARD */
