@@ -41,7 +41,7 @@
 
 
 
-#define DISABLE_PRINTF
+//#define DISABLE_PRINTF
 
 
 void send_data_uart(void);
@@ -98,7 +98,7 @@ int main(void)
 
 
 
-	boot_drivers(); //BOOT BOTH DRIVERS
+//	boot_drivers(); //BOOT BOTH DRIVERS
 
 	flash_read_calibration_values();	//READ CALIBRATION VALUES FROM FLASH
 
@@ -109,11 +109,14 @@ int main(void)
     while (1)
     {
 
-       update_state_machine(&driver_1);
-       driver_1.time_stamp = millis();
+//       update_state_machine(&driver_1);
+//       driver_1.time_stamp = millis();
+//
+//       update_state_machine(&driver_2);
+//       driver_2.time_stamp = millis();
 
-       update_state_machine(&driver_2);
-       driver_2.time_stamp = millis();
+    	//PRINTF BUTTONS
+    	PRINTF("%d %d %d %d\n", start_button_pressed(), drive_button_pressed(), stop_button_pressed(), calibration_button_pressed());
 
 
     }

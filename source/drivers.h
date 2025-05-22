@@ -36,6 +36,8 @@
 #define MAX_VELOCITY			((int32_t)2500) //RPM
 #define MAX_DC_CURRENT			((int32_t)50) //A
 
+#define KV_EMRAX188            ((float)39.31) //RPM/V at Nominal Load
+
 
 
 typedef enum {
@@ -210,6 +212,7 @@ typedef struct {
     	//RPDO data
     pdo1_data_t pdo1_data;
     pdo2_data_t pdo2_data;
+
 
 } driver_t;
 

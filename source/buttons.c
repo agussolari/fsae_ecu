@@ -60,36 +60,35 @@ bool calibration_button_pressed(void)
 
 void init_buttons(void)
 {
+    CLOCK_AttachClk(kFRO12M_to_FLEXCOMM0);    // Inicializar el GPIO
 
 	//Inicializar el INPUTMUX para conectar los botones
 	INPUTMUX_Init(INPUTMUX);
-	INPUTMUX_AttachSignal(INPUTMUX, start_button.pinit_pin,
-			start_button.mux_connection);
-	INPUTMUX_AttachSignal(INPUTMUX, drive_button.pinit_pin,
-			drive_button.mux_connection);
-	INPUTMUX_AttachSignal(INPUTMUX, stop_button.pinit_pin,
-			stop_button.mux_connection);
-	INPUTMUX_AttachSignal(INPUTMUX, calibration_button.pinit_pin,
-			calibration_button.mux_connection);
+	INPUTMUX_AttachSignal(INPUTMUX, kPINT_PinInt0, kINPUTMUX_GpioPort1Pin29ToPintsel);
+	INPUTMUX_AttachSignal(INPUTMUX, kPINT_PinInt1, kINPUTMUX_GpioPort0Pin14ToPintsel);
+	INPUTMUX_AttachSignal(INPUTMUX, kPINT_PinInt2, kINPUTMUX_GpioPort0Pin0ToPintsel);
+	INPUTMUX_AttachSignal(INPUTMUX, kPINT_PinInt3, kINPUTMUX_GpioPort0Pin26ToPintsel);
+    INPUTMUX_Deinit(INPUTMUX);
+
 
 	//Inicializar el PINT para conectar los botones
 	PINT_Init(PINT);
 
 	//Configuro la interrupcion de cada boton
-	PINT_PinInterruptConfig(PINT, start_button.pinit_pin,
+	PINT_PinInterruptConfig(PINT, kPINT_PinInt0,
 			kPINT_PinIntEnableBothEdges, start_button_callback);
-	PINT_PinInterruptConfig(PINT, drive_button.pinit_pin,
+	PINT_PinInterruptConfig(PINT, kPINT_PinInt1,
 			kPINT_PinIntEnableBothEdges, drive_button_callback);
-	PINT_PinInterruptConfig(PINT, stop_button.pinit_pin,
+	PINT_PinInterruptConfig(PINT, kPINT_PinInt2,
 			kPINT_PinIntEnableBothEdges, stop_button_callback);
-	PINT_PinInterruptConfig(PINT, calibration_button.pinit_pin,
+	PINT_PinInterruptConfig(PINT, kPINT_PinInt3,
 			kPINT_PinIntEnableBothEdges, calibration_button_callback);
 
 	//Habilito la interrupcion de cada boton
-	PINT_EnableCallbackByIndex(PINT, start_button.pinit_pin);
-	PINT_EnableCallbackByIndex(PINT, drive_button.pinit_pin);
-	PINT_EnableCallbackByIndex(PINT, stop_button.pinit_pin);
-	PINT_EnableCallbackByIndex(PINT, calibration_button.pinit_pin);
+	PINT_EnableCallbackByIndex(PINT, kPINT_PinInt0);
+	PINT_EnableCallbackByIndex(PINT, kPINT_PinInt1);
+	PINT_EnableCallbackByIndex(PINT, kPINT_PinInt2);
+	PINT_EnableCallbackByIndex(PINT, kPINT_PinInt3);
 
 }
 

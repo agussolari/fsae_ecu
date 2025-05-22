@@ -45,6 +45,7 @@ void init_drivers(driver_t* driver)
 
 
 
+
 	//Clean data of the PDO and TPDO
 	for (int i = 0; i < 8; i++) {
 		driver->tpdo1_data.b[i] = 0;
@@ -364,9 +365,12 @@ void send_pdo_message(driver_t *driver)
 	// Read the TPS values
 	float sensor_value = (float)(tps_data.tps1_value + tps_data.tps2_value)/(2.0f);
 	float velocity_value = (float) abs(driver->tpdo2_data.data.actual_velocity);
+	float max_velocity = (float) ((KV_EMRAX188)* (((float)(driver->tpdo1_data.data.dc_link_voltage))/10.0f) );
 
 	// Calculate the factor
 	float Mmin = (MAX_DC_CURRENT)/((float)(driver->tpdo2_data.data.motor_rated_current)/1000.0f);
+
+	// Calculate the MAX velocity
 
 	float M = Mmin;
 
@@ -379,10 +383,10 @@ void send_pdo_message(driver_t *driver)
 		M = 100.0;
 	}
 
-	if(velocity_value > M * MAX_VELOCITY)
+	if(velocity_value > (M * max_velocity))
 	{
 		//tps = Mmin * 1000.0 * (VEL_MAX / velocity)
-		driver->tps_value = (uint16_t)((Mmin * 1000.0f * MAX_VELOCITY) / velocity_value);
+		driver->tps_value = (uint16_t)((Mmin * 1000.0f * max_velocity) / velocity_value);
 	}
 	else
 	{
