@@ -56,6 +56,7 @@ void init_sensor(void);
 void flash_read_calibration_values(void);
 
 void run_sensors(void);
+void trigger_adc(void);
 bool check_implausibility_tps(void);
 void recive_current_message(can_msg_t rx_msg);
 
@@ -106,7 +107,8 @@ typedef struct {
 
 } tps_data_t;
 
-
+extern volatile bool using_adc_array;
+extern uint16_t adc_sensor_values[ADC_CHANNEL_COUNT];
 
 extern tps_data_t tps_data;
 

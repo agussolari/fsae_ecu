@@ -124,7 +124,7 @@ void adcInit(void)
     LPADC_GetDefaultConfig(&lpadc_config);
     lpadc_config.enableAnalogPreliminary = true;
     lpadc_config.referenceVoltageSource = ADC_VREF;
-    lpadc_config.conversionAverageMode = kLPADC_ConversionAverage128;
+    lpadc_config.conversionAverageMode = kLPADC_ConversionAverage16;
     LPADC_Init(ADC0, &lpadc_config);
 
 
@@ -138,15 +138,10 @@ void adcInit(void)
     // 6) Set conversion CMD configuration
     lpadc_conv_command_config_t lpadc_cmd_config;;
     LPADC_GetDefaultConvCommandConfig(&lpadc_cmd_config);
-    lpadc_cmd_config.sampleTimeMode = kLPADC_SampleTimeADCK7;
+    lpadc_cmd_config.sampleTimeMode = kLPADC_SampleTimeADCK67;
     lpadc_cmd_config.hardwareAverageMode = ADC_AVERAGE_2POW;
-#if ADC_RESOLUTION_BITS == 12
-#elif ADC_RESOLUTION_BITS == 16
-    lpadc_cmd_config.conversionResolutionMode = kLPADC_ConversionResolutionHigh;
-#else
-#error resolución invalida para el ADC! Debe ser 12 o 16
-#endif // ADC_RESOLUTION_BITS = xx
 
+    lpadc_cmd_config.conversionResolutionMode = kLPADC_ConversionResolutionHigh;
     int i;
     // channel
     for (i=0 ; i<ADC_CANT_CH ; ++i)

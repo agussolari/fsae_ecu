@@ -18,7 +18,14 @@
 #include "clock_config.h"
 #include "board.h"
 
-//SemaphoreHandle_t adcMutex; // Declarar el mutex
+#define FILTER_WINDOW_SIZE 50
+typedef struct {
+    uint16_t values[FILTER_WINDOW_SIZE];
+    uint8_t index;
+    uint32_t sum;
+} filter_t;
+
+void init_filter(filter_t *filter);
 
 
 void DMA_Callback(dma_handle_t *handle, void *param, bool transferDone, uint32_t tcds);
@@ -40,6 +47,13 @@ static uint16_t raw_front_brake = 0;
 static uint16_t raw_rear_brake = 0;
 static uint16_t raw_direction = 0;
 
+static filter_t tps1_filter;
+static filter_t tps2_filter;
+static filter_t front_brake_filter;
+static filter_t rear_brake_filter;
+static filter_t direction_filter;
+
+
 
 
 //DMA variables
@@ -52,7 +66,8 @@ dma_channel_config_t dmaChannelConfigStruct;
 SDK_ALIGN(uint32_t s_dma_table[DMA_DESCRIPTOR_NUM * sizeof(dma_descriptor_t)],
 		FSL_FEATURE_DMA_LINK_DESCRIPTOR_ALIGN_SIZE);
 
-volatile bool g_DmaTransferDoneFlag = false;
+volatile bool g_DmaTransferDoneFlag = true;
+volatile bool using_adc_array = false;
 
 /* Configure DMA */
 static void DMA_Configuration(void)
@@ -102,15 +117,18 @@ void DMA_Callback(dma_handle_t *handle, void *param, bool transferDone, uint32_t
 		{
 			uint32_t raw_data = g_AdcConvResult[i];
 			uint16_t adc_value = (uint16_t) (raw_data & 0xFFFF); // Extract bits 0:15
-			uint8_t trigger_source = (uint8_t) ((raw_data >> 16) & 0x0F); // Extract bits 19:16
+            uint8_t cmd_source = (uint8_t)((raw_data >> 24) & (0x0F)); // Extract bits 27:24
 
-//            // Map trigger source to corresponding channel or action
-//	        if (xSemaphoreTake(adcMutex, portMAX_DELAY) == pdTRUE)
-//	        {
-	        	adc_sensor_values[trigger_source] = adc_value;
-//	            xSemaphoreGive(adcMutex); // Liberar el mutex
-//
-//	        }
+
+			if (cmd_source >= 1 && cmd_source <= ADC_CHANNEL_COUNT)
+			{
+				if(using_adc_array == false)
+				{
+					using_adc_array = true;
+					adc_sensor_values[cmd_source-1] = adc_value;
+					using_adc_array = false;
+				}
+			}
 		}
 	}
 }
@@ -121,22 +139,47 @@ void init_sensor(void) {
 	// Inicializo los sensores
 	uartWriteStr("Starting sensors...\n");
 
-    adcMutex = xSemaphoreCreateMutex();
-    if (adcMutex == NULL) {
-        uartWriteStr("Failed to create ADC mutex\n");
-        return;
-    }
-
 
 	//Inicializar el ADC
 	adcInit();
 	adcInitDMA();
+	DMA_Configuration();
 
-
+	init_filter(&tps1_filter);
+	init_filter(&tps2_filter);
+	init_filter(&front_brake_filter);
+	init_filter(&rear_brake_filter);
+	init_filter(&direction_filter);
 
 
 	uartWriteStr("Sensors started\n");
 }
+
+
+void init_filter(filter_t *filter)
+{
+    for (int i = 0; i < FILTER_WINDOW_SIZE; i++) {
+        filter->values[i] = 0;
+    }
+    filter->index = 0;
+    filter->sum = 0;
+}
+
+uint16_t apply_filter(filter_t *filter, uint16_t new_value)
+{
+    // Subtract the oldest value from the sum
+    filter->sum -= filter->values[filter->index];
+    // Add the new value to the sum
+    filter->sum += new_value;
+    // Store the new value in the array
+    filter->values[filter->index] = new_value;
+    // Update the index
+    filter->index = (filter->index + 1) % FILTER_WINDOW_SIZE;
+    // Return the average value
+    return (uint16_t)(filter->sum / FILTER_WINDOW_SIZE);
+}
+
+
 
 
 
@@ -174,16 +217,28 @@ void run_sensors(void)
 
 	trigger_adc();
 
-    // Tomar el mutex antes de leer adc_sensor_values
-//    if (xSemaphoreTake(adcMutex, portMAX_DELAY) == pdTRUE)
-//    {
-        uint16_t raw_tps1 = adc_sensor_values[ADC_CHANNEL_TPS1];
-        uint16_t raw_tps2 = adc_sensor_values[ADC_CHANNEL_TPS2];
-        uint16_t raw_front_brake = adc_sensor_values[ADC_CHANNEL_FRONT_BRAKE];
-        uint16_t raw_rear_brake = adc_sensor_values[ADC_CHANNEL_REAR_BRAKE];
-        uint16_t raw_direction = adc_sensor_values[ADC_CHANNEL_DIRECTION];
-        xSemaphoreGive(adcMutex); // Liberar el mutex
-//    }
+
+	if(using_adc_array == false)
+	{
+		using_adc_array = true;
+		raw_tps1 = adc_sensor_values[ADC_CHANNEL_TPS1];
+	    raw_tps2 = adc_sensor_values[ADC_CHANNEL_TPS2];
+	    raw_front_brake = adc_sensor_values[ADC_CHANNEL_FRONT_BRAKE];
+	    raw_rear_brake = adc_sensor_values[ADC_CHANNEL_REAR_BRAKE];
+	    raw_direction = adc_sensor_values[ADC_CHANNEL_DIRECTION];
+	    using_adc_array = false;
+	}
+
+	// Apply filters
+	raw_tps1 = apply_filter(&tps1_filter, raw_tps1);
+	raw_tps2 = apply_filter(&tps2_filter, raw_tps2);
+	raw_front_brake = apply_filter(&front_brake_filter, raw_front_brake);
+	raw_rear_brake = apply_filter(&rear_brake_filter, raw_rear_brake);
+	raw_direction = apply_filter(&direction_filter, raw_direction);
+
+
+
+
 
 	tps_data.tps_time_stamp = millis();
 

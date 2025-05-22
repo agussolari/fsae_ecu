@@ -21,7 +21,7 @@
  ******************************************************************************/
 
 
-//#define DISABLE_PRINTF
+#define DISABLE_PRINTF
 
 #ifdef DISABLE_PRINTF
 

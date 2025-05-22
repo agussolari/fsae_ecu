@@ -37,6 +37,10 @@
 #include "SysTick.h"
 #include "adc.h"
 
+
+
+
+
 #define DISABLE_PRINTF
 
 
@@ -71,6 +75,7 @@ int main(void)
 
 
 
+
 	//Initialice periodic interrupts
 	SysTick_RegisterCallback(send_data_led, 100);
 	SysTick_RegisterCallback(send_data_uart, 10);
@@ -79,7 +84,8 @@ int main(void)
 
 
 	SysTick_RegisterCallback(recive_data, 1);
-//	SysTick_RegisterCallback(run_sensors, 10);
+	SysTick_RegisterCallback(run_sensors, 10);
+
 
 
 	//Init drivers
@@ -116,10 +122,11 @@ int main(void)
 
 
 
+
+
+
 void send_data_uart(void)
 {
-//	send_data_gui_uart(&driver_1);
-//	send_data_gui_uart(&driver_2);
 	send_data_rf_uart();
 
 }
