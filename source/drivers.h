@@ -34,7 +34,7 @@
 #define MAX_VELOCITY			((int32_t)2500) //RPM
 #define MAX_DC_CURRENT			((int32_t)50) //A
 
-#define KV_EMRAX            	((float)39.31) //RPM/V
+#define KV_EMRAX            	((float)20.00) //RPM/V
 
 
 typedef enum {
