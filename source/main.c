@@ -97,10 +97,10 @@ int main(void)
 	init_drivers(&driver_2);	//INIT DRIVER 2
 
 
-
-//	boot_drivers(); //BOOT BOTH DRIVERS
-
 	flash_read_calibration_values();	//READ CALIBRATION VALUES FROM FLASH
+
+	boot_drivers(); //BOOT BOTH DRIVERS
+
 
 
 	uartWriteStr("Init complete\n");
@@ -109,14 +109,14 @@ int main(void)
     while (1)
     {
 
-//       update_state_machine(&driver_1);
-//       driver_1.time_stamp = millis();
-//
-//       update_state_machine(&driver_2);
-//       driver_2.time_stamp = millis();
+       update_state_machine(&driver_1);
+       driver_1.time_stamp = millis();
+
+       update_state_machine(&driver_2);
+       driver_2.time_stamp = millis();
 
     	//PRINTF BUTTONS
-    	PRINTF("%d %d %d %d\n", start_button_pressed(), drive_button_pressed(), stop_button_pressed(), calibration_button_pressed());
+//    	PRINTF("%d %d %d %d\n", start_button_pressed(), drive_button_pressed(), stop_button_pressed(), calibration_button_pressed());
 
 
     }

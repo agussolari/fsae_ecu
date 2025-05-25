@@ -20,7 +20,7 @@
  * CONSTANT AND MACRO DEFINITIONS USING #DEFINE
  ******************************************************************************/
 
-
+#define DEBUG_MODE	1
 
 #ifdef DISABLE_PRINTF
 

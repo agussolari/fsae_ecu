@@ -71,6 +71,22 @@ void BOARD_InitPins(void)
     /* Enables the clock for the GPIO0 module */
     CLOCK_EnableClock(kCLOCK_Gpio0);
 
+    const uint32_t gpio_config = (
+                                         IOCON_PIO_FUNC0 |
+                                         /* No addition pin function */
+                                         IOCON_PIO_MODE_INACT |
+                                         /* Standard mode, output slew rate control is enabled */
+                                         IOCON_PIO_SLEW_STANDARD |
+                                         /* Input function is not inverted */
+                                         IOCON_PIO_INV_DI |
+                                         /* Enables digital function */
+                                         IOCON_PIO_DIGITAL_EN |
+                                         /* Open drain is disabled */
+                                         IOCON_PIO_OPENDRAIN_DI);
+    IOCON_PinMuxSet(IOCON, 1U, 29U, gpio_config); //START BUTTON
+    IOCON_PinMuxSet(IOCON, 0U, 14U, gpio_config);  //DRIVE BUTTON
+    IOCON_PinMuxSet(IOCON, 0U, 0U, gpio_config);  //STOP BUTTON
+    IOCON_PinMuxSet(IOCON, 1U, 0U, gpio_config);  //CALIBRATION BUTTON
 
 
 	const uint32_t adc_config = IOCON_PIO_DIGIMODE(0) | IOCON_PIO_ASW(1);

@@ -18,23 +18,38 @@ button_t calibration_button = {PINIT_PIN_CALIBRATION, INPUTMUX_CALIBRATION_GPIO_
 void start_button_callback(pint_pin_int_t pintr, uint32_t pmatch_status)
 {
 
-	// Set the pressed flag and state to true
-	start_button.pressed_flag = !start_button.pressed_flag;
+	if (start_button.pressed_flag == false) {
+		start_button.pressed_flag = true;
+	} else {
+		start_button.pressed_flag = false;
+	}
 }
 
 void drive_button_callback(pint_pin_int_t pintr, uint32_t pmatch_status)
 {
-	drive_button.pressed_flag = !drive_button.pressed_flag;
+	if (drive_button.pressed_flag == false) {
+		drive_button.pressed_flag = true;
+	} else {
+		drive_button.pressed_flag = false;
+	}
 }
 
 void stop_button_callback(pint_pin_int_t pintr, uint32_t pmatch_status)
 {
-	stop_button.pressed_flag = !stop_button.pressed_flag;
+	if (stop_button.pressed_flag == false) {
+		stop_button.pressed_flag = true;
+	} else {
+		stop_button.pressed_flag = false;
+	}
 }
 
 void calibration_button_callback(pint_pin_int_t pintr, uint32_t pmatch_status)
 {
-	calibration_button.pressed_flag = !calibration_button.pressed_flag;
+	if (calibration_button.pressed_flag == false) {
+		calibration_button.pressed_flag = true;
+	} else {
+		calibration_button.pressed_flag = false;
+	}
 }
 
 
@@ -64,10 +79,10 @@ void init_buttons(void)
 
 	//Inicializar el INPUTMUX para conectar los botones
 	INPUTMUX_Init(INPUTMUX);
-	INPUTMUX_AttachSignal(INPUTMUX, kPINT_PinInt0, kINPUTMUX_GpioPort1Pin29ToPintsel);
-	INPUTMUX_AttachSignal(INPUTMUX, kPINT_PinInt1, kINPUTMUX_GpioPort0Pin14ToPintsel);
-	INPUTMUX_AttachSignal(INPUTMUX, kPINT_PinInt2, kINPUTMUX_GpioPort0Pin0ToPintsel);
-	INPUTMUX_AttachSignal(INPUTMUX, kPINT_PinInt3, kINPUTMUX_GpioPort0Pin26ToPintsel);
+	INPUTMUX_AttachSignal(INPUTMUX, start_button.pinit_pin, start_button.mux_connection);
+	INPUTMUX_AttachSignal(INPUTMUX, drive_button.pinit_pin, drive_button.mux_connection);
+	INPUTMUX_AttachSignal(INPUTMUX, stop_button.pinit_pin, stop_button.mux_connection);
+	INPUTMUX_AttachSignal(INPUTMUX, calibration_button.pinit_pin, calibration_button.mux_connection);
     INPUTMUX_Deinit(INPUTMUX);
 
 
@@ -75,20 +90,16 @@ void init_buttons(void)
 	PINT_Init(PINT);
 
 	//Configuro la interrupcion de cada boton
-	PINT_PinInterruptConfig(PINT, kPINT_PinInt0,
-			kPINT_PinIntEnableBothEdges, start_button_callback);
-	PINT_PinInterruptConfig(PINT, kPINT_PinInt1,
-			kPINT_PinIntEnableBothEdges, drive_button_callback);
-	PINT_PinInterruptConfig(PINT, kPINT_PinInt2,
-			kPINT_PinIntEnableBothEdges, stop_button_callback);
-	PINT_PinInterruptConfig(PINT, kPINT_PinInt3,
-			kPINT_PinIntEnableBothEdges, calibration_button_callback);
+	PINT_PinInterruptConfig(PINT, start_button.pinit_pin, kPINT_PinIntEnableBothEdges, start_button_callback);
+	PINT_PinInterruptConfig(PINT, drive_button.pinit_pin, kPINT_PinIntEnableBothEdges, drive_button_callback);
+	PINT_PinInterruptConfig(PINT, stop_button.pinit_pin, kPINT_PinIntEnableBothEdges, stop_button_callback);
+	PINT_PinInterruptConfig(PINT, calibration_button.pinit_pin, kPINT_PinIntEnableBothEdges, calibration_button_callback);
 
 	//Habilito la interrupcion de cada boton
-	PINT_EnableCallbackByIndex(PINT, kPINT_PinInt0);
-	PINT_EnableCallbackByIndex(PINT, kPINT_PinInt1);
-	PINT_EnableCallbackByIndex(PINT, kPINT_PinInt2);
-	PINT_EnableCallbackByIndex(PINT, kPINT_PinInt3);
+	PINT_EnableCallbackByIndex(PINT, start_button.pinit_pin);
+	PINT_EnableCallbackByIndex(PINT, drive_button.pinit_pin);
+	PINT_EnableCallbackByIndex(PINT, stop_button.pinit_pin);
+	PINT_EnableCallbackByIndex(PINT, calibration_button.pinit_pin);
 
 }
 

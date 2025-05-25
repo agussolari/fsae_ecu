@@ -36,7 +36,7 @@
 #define MAX_VELOCITY			((int32_t)2500) //RPM
 #define MAX_DC_CURRENT			((int32_t)50) //A
 
-#define KV_EMRAX188            ((float)39.31) //RPM/V at Nominal Load
+#define KV_EMRAX188            ((float)22.00) //RPM/V at Nominal Load
 
 
 
@@ -223,6 +223,7 @@ extern bool enable_read_data;
 
 void init_drivers(driver_t* driver);
 void boot_drivers(void);
+void map_driver_parameters(driver_t *driver);
 void map_tpdo(driver_t *driver);
 void send_sync_message(void);
 

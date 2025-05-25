@@ -18,7 +18,7 @@
 #include "clock_config.h"
 #include "board.h"
 
-#define FILTER_WINDOW_SIZE 50
+#define FILTER_WINDOW_SIZE 100
 typedef struct {
     uint16_t values[FILTER_WINDOW_SIZE];
     uint8_t index;

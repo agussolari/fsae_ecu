@@ -103,6 +103,8 @@ void boot_drivers(void)
 			driver_1.nmt_state = NMT_STATE_PRE_OPERATIONAL;
 			driver_2.nmt_state = NMT_STATE_PRE_OPERATIONAL;
 
+			map_driver_parameters(&driver_1);
+			map_driver_parameters(&driver_2);
 
 			map_tpdo(&driver_1);
 			map_tpdo(&driver_2);
@@ -363,7 +365,7 @@ void send_pdo_message(driver_t *driver)
 	uint32_t interval = TPS_INTERVAL_WAIT; // Default interval is 100ms
 
 	// Read the TPS values
-	float sensor_value = (float)(tps_data.tps1_value + tps_data.tps2_value)/(2.0f);
+	float sensor_value = (float)(tps_data.tps1_value);  //Solo TPS1 ya que TPS2 funciona mal
 	float velocity_value = (float) abs(driver->tpdo2_data.data.actual_velocity);
 	float max_velocity = (float) ((KV_EMRAX188)* (((float)(driver->tpdo1_data.data.dc_link_voltage))/10.0f) );
 
@@ -930,6 +932,39 @@ void send_data_motec(void)
 	}
 }
 
+
+void map_driver_parameters(driver_t *driver)
+{
+	//Overvoltage 0x2054 0x00 = 120V
+	send_sdo_write_command(0x2B, 0x2054, 0x00, 120 , driver->node_id);
+
+	//Undervoltage limit 0x2055 0x01 = 100V
+	send_sdo_write_command(0x2B, 0x2055, 0x01, 100 , driver->node_id);
+	//Undervoltage min voltage 0x2055 0x03 = 96V
+	send_sdo_write_command(0x2B, 0x2055, 0x03, 96 , driver->node_id);
+
+	//Maximum controller current 0x2050 = 300000mA
+	send_sdo_write_command(0x23, 0x2050, 0x00, 300000 , driver->node_id);
+	//Secondary current protection 0x2051 = 350000mA
+	send_sdo_write_command(0x23, 0x2051, 0x00, 350000 , driver->node_id);
+
+	//Motor maximum temperature 0x2057 0x02 = 80C
+	send_sdo_write_command(0x27, 0x2057, 0x02, 80 , driver->node_id);
+
+	// Current control torque regulator P gain 0x60F6 0x01 = 3200
+	send_sdo_write_command(0x2B, 0x60F6, 0x01, 3200 , driver->node_id);
+	// Current control torque regulator I gain 0x60F6 0x02 = 4500
+	send_sdo_write_command(0x2B, 0x60F6, 0x02, 4500 , driver->node_id);
+
+	//Current control flux regulator P gain 0x60F6 0x03 = 3200
+	send_sdo_write_command(0x2B, 0x60F6, 0x03, 3200 , driver->node_id);
+	//Current control flux regulator I gain 0x60F6 0x04 = 4500
+	send_sdo_write_command(0x2B, 0x60F6, 0x04, 4500 , driver->node_id);
+
+	//Save the parameters
+	send_sdo_write_command(0x23, 0x1010, 0x01, SAVE_PARAM , driver->node_id);
+
+}
 
 
 
