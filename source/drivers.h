@@ -30,6 +30,11 @@
 #define TPDO4_ID 				(0x480)
 
 
+#define TPS_THRESHOLD 10
+#define TPS_INTERVAL_WAIT 100
+#define TPS_INTERVAL_RUN 10
+
+
 
 #define SAVE_PARAM 				(uint32_t)(0x65766173)
 

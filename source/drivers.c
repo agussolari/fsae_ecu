@@ -136,8 +136,6 @@ void boot_drivers(void)
 				if (start_button_pressed() && drive_button_pressed())
 				{
 					set_calibration_1();
-					driver_1.state = STATE_CALIBRATION_2;
-					driver_2.state = STATE_IDLE;
 				}
 			}
 
@@ -170,43 +168,8 @@ void update_state_machine(driver_t* driver)
             if (start_button_pressed())
             {
 				driver->state = STATE_START;
-				break;
-            }
-			if (calibration_button_pressed())
-			{
-				driver_1.state = STATE_CALIBRATION_1;
-				driver_2.state = STATE_IDLE;
-				break;
-			}
-			break;
-
-        case STATE_CALIBRATION_1:
-            if (calibration_button_pressed())
-            {
-            	set_calibration_1();
-            	break;
-            }
-            if (stop_button_pressed())
-            {
-            	driver->state = STATE_WAIT_START;
-            	break;
-            }
-            break;
-
-        case STATE_CALIBRATION_2:
-			if (calibration_button_pressed())
-			{
-				set_calibration_2();
-				break;
-			}
-            if (stop_button_pressed())
-            {
-            	driver->state = STATE_WAIT_START;
-            	break;
             }
 			break;
-
-
 
 
         case STATE_START:
@@ -248,7 +211,7 @@ void update_state_machine(driver_t* driver)
 
         case STATE_DRIVE:
             run_motors(driver);
-//            handle_errors(driver);
+            //handle_errors(driver);
 
             if (stop_button_pressed())
             {
@@ -348,16 +311,11 @@ void recive_pdo_message(can_msg_t rx_msg)
 			for (int i = 0; i < 8; i++)
 				driver_2.tpdo4_data.b[i] = rx_msg.data[i];
 		}
-
 }
 
 
 
 
-
-#define TPS_THRESHOLD 10
-#define TPS_INTERVAL_WAIT 100
-#define TPS_INTERVAL_RUN 10
 
 
 void send_pdo_message(driver_t *driver)
@@ -365,7 +323,7 @@ void send_pdo_message(driver_t *driver)
 	uint32_t interval = TPS_INTERVAL_WAIT; // Default interval is 100ms
 
 	// Read the TPS values
-	float sensor_value = (float)(tps_data.tps1_value);  //Solo TPS1 ya que TPS2 funciona mal
+	float sensor_value = (float)(sensor_values.tps_value);  //Solo TPS1 ya que TPS2 funciona mal
 	float velocity_value = (float) abs(driver->tpdo2_data.data.actual_velocity);
 	float max_velocity = (float) ((KV_EMRAX188)* (((float)(driver->tpdo1_data.data.dc_link_voltage))/10.0f) );
 
